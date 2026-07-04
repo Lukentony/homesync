@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="112" fill="#E2743A"/>
+  <!-- House outline -->
+  <path d="M256 120 L380 220 L380 390 L132 390 L132 220 Z" fill="none" stroke="white" stroke-width="22" stroke-linejoin="round"/>
+  <!-- Roof peak -->
+  <path d="M200 120 L256 72 L312 120" fill="none" stroke="white" stroke-width="22" stroke-linejoin="round"/>
+  <!-- Door -->
+  <rect x="220" y="300" width="72" height="90" rx="36" fill="white" opacity="0.9"/>
+  <!-- Checkmark inside door -->
+  <path d="M238 345 L252 360 L276 330" fill="none" stroke="#E2743A" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

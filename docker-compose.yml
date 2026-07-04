@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  homesync-api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: homesync-api
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/data
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  homesync-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: homesync-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3100:80"
+    volumes:
+      - ./public/runtime-config.json:/usr/share/nginx/html/runtime-config.json:ro
+    environment:
+      - NODE_ENV=production
+      - API_URL=http://homesync-api:8000
+    depends_on:
+      homesync-api:
+        condition: service_healthy

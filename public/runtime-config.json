@@ -1,0 +1,14 @@
+{
+  "apiBaseUrl": "/api",
+  "appName": "HomeSync",
+  "users": [
+    { "id": 1, "name": "Utente A",   "emoji": "🦦", "color": "#E2743A" },
+    { "id": 2, "name": "Utente B", "emoji": "🐢", "color": "#6F9E7A" }
+  ],
+  "features": {
+    "vacationMode": true,
+    "n8nIntegration": true,
+    "weeklyLeaderboard": true
+  },
+  "build": "homesync-frontend:1.0.0"
+}

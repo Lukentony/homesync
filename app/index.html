@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+  <!-- PWA meta -->
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="HomeSync" />
+  <meta name="theme-color" content="#FBF6EE" />
+  <meta name="description" content="Organizza le pulizie di casa con il tuo coinquilino" />
+
+  <title>HomeSync</title>
+
+  <!-- PWA manifest + icons -->
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <link rel="apple-touch-icon" href="/icon.svg" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { height: 100%; }
+    body {
+      height: 100%; width: 100%;
+      background: #FBF6EE;
+      font-family: 'Inter', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overscroll-behavior: none;
+      overflow: hidden;
+    }
+    #root {
+      height: 100%;
+      /* Safe area on notch devices */
+      padding-top: env(safe-area-inset-top);
+      /* Bottom is handled per-component */
+    }
+
+    /* Scrollbar hide */
+    ::-webkit-scrollbar { width: 0; height: 0; }
+    * { scrollbar-width: none; }
+
+    /* Tap/click feel */
+    button, [role="button"] { -webkit-tap-highlight-color: transparent; cursor: pointer; }
+    input, textarea, select { -webkit-appearance: none; font-family: inherit; }
+
+    /* Range input */
+    input[type=range] {
+      -webkit-appearance: none; height: 4px; border-radius: 999px;
+      background: #E8E0D6; cursor: pointer;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
+      background: #E2743A; cursor: pointer; box-shadow: 0 2px 6px rgba(226,116,58,.35);
+    }
+    input[type=range]::-moz-range-thumb {
+      width: 22px; height: 22px; border-radius: 50%; border: none;
+      background: #E2743A; box-shadow: 0 2px 6px rgba(226,116,58,.35);
+    }
+
+    /* Keyframe animations */
+    @keyframes hs-fade {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    @keyframes hs-slide-up {
+      from { transform: translateY(52px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+    @keyframes hs-drawer-in {
+      from { transform: translateX(100%); }
+      to   { transform: translateX(0); }
+    }
+    @keyframes hs-spin {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes hs-toast-in {
+      from { transform: translateY(20px) translateX(-50%); opacity: 0; }
+      to   { transform: translateY(0)    translateX(-50%); opacity: 1; }
+    }
+    @keyframes hs-toast-out {
+      from { transform: translateY(0)    translateX(-50%); opacity: 1; }
+      to   { transform: translateY(20px) translateX(-50%); opacity: 0; }
+    }
+    @keyframes hs-bounce {
+      0%, 100% { transform: scale(1); }
+      50%       { transform: scale(1.15); }
+    }
+
+    /* Loading overlay — shown while api-bridge bootstraps */
+    #hs-loading {
+      position: fixed; inset: 0; z-index: 9999;
+      background: #FBF6EE;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 16px;
+    }
+    #hs-loading .hs-logo {
+      width: 72px; height: 72px; border-radius: 22px;
+      background: #E2743A; color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Fraunces', serif; font-size: 38px; font-weight: 600;
+      box-shadow: 0 8px 28px rgba(226,116,58,.4);
+    }
+    #hs-loading .hs-spinner {
+      width: 28px; height: 28px; border-radius: 50%;
+      border: 3px solid #E8E0D6; border-top-color: #E2743A;
+      animation: hs-spin .8s linear infinite;
+    }
+    #hs-loading .hs-label {
+      font-family: 'Inter', sans-serif; font-size: 13px;
+      color: #9E8572; font-weight: 500;
+    }
+
+    /* PWA install banner */
+    #hs-install-banner {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 80;
+      padding: 14px 18px calc(14px + env(safe-area-inset-bottom));
+      background: #fff; border-top: 1px solid #EDE8E0;
+      box-shadow: 0 -4px 24px rgba(42,29,20,.08);
+      display: flex; align-items: center; gap: 12;
+      animation: hs-slide-up .28s cubic-bezier(.2,.9,.3,1);
+    }
+    #hs-install-banner .hs-install-icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: #E2743A; color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Fraunces', serif; font-size: 22px; font-weight: 600;
+      flex-shrink: 0;
+    }
+    #hs-install-banner .hs-install-text { flex: 1; }
+    #hs-install-banner .hs-install-title {
+      font-weight: 700; font-size: 14px; color: #2A1D14;
+    }
+    #hs-install-banner .hs-install-sub {
+      font-size: 11.5px; color: #9E8572; margin-top: 1px;
+    }
+    #hs-install-banner .hs-install-btn {
+      padding: 10px 16px; border-radius: 10px; border: none;
+      background: #E2743A; color: #fff;
+      font-weight: 700; font-size: 13px; white-space: nowrap;
+    }
+    #hs-install-banner .hs-dismiss-btn {
+      padding: 8px; border: none; background: none;
+      color: #9E8572; font-size: 18px; line-height: 1;
+    }
+  </style>
+</head>
+<body>
+  <script>
+    // Aggiornamento service worker robusto. Gira PRIMA di React, cosi' recupera
+    // anche quando l'app (vecchia cache) va in errore: forza il check di una
+    // nuova versione del SW e RICARICA quando il nuovo SW prende il controllo.
+    // Guard anti-loop. Risolve "errore di caricamento" sull'app installata dopo un deploy.
+    (function () {
+      if (!('serviceWorker' in navigator)) return;
+      var refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (refreshing) return; refreshing = true;
+        window.location.reload();
+      });
+      navigator.serviceWorker.register('/sw.js')
+        .then(function (reg) { try { reg.update(); } catch (e) {} })
+        .catch(function () {});
+    })();
+  </script>
+  <!-- Loading overlay (removed by JS once app mounts) -->
+  <div id="hs-loading" aria-live="polite" aria-label="Caricamento HomeSync">
+    <div class="hs-logo" aria-hidden="true">H</div>
+    <div class="hs-spinner" role="progressbar" aria-label="Caricamento in corso"></div>
+    <div class="hs-label" id="hs-loading-label">Caricamento…</div>
+  </div>
+  <script>
+    // Se dopo 8s l'app non è montata, mostra un errore leggibile
+    setTimeout(function() {
+      var el = document.getElementById('hs-loading');
+      var lbl = document.getElementById('hs-loading-label');
+      if (el && el.parentNode) {
+        var isFile = location.protocol === 'file:';
+        lbl.innerHTML = isFile
+          ? '⚠️ Apri tramite un server HTTP<br><small style="font-size:11px;opacity:.7">es: <code>python -m http.server 9000</code></small>'
+          : '⚠️ Errore di caricamento — ricarica la pagina';
+        document.querySelector('#hs-loading .hs-spinner').style.display = 'none';
+        lbl.style.textAlign = 'center';
+        lbl.style.lineHeight = '1.6';
+        lbl.style.maxWidth = '280px';
+      }
+    }, 8000);
+  </script>
+
+  <div id="root" role="main"></div>
+
+  <!-- ── Core libs (production builds) ────────────────────────────────────── -->
+  <script src="/vendor/react.min.js"></script>
+  <script src="/vendor/react-dom.min.js"></script>
+  <script src="/vendor/babel.min.js"></script>
+
+  <!-- ── API bridge (plain JS) ─────────────────────────────────────────────── -->
+  <script src="/lib-bridge/api-client.js"></script>
+  <script src="/lib-bridge/user-picker.js"></script>
+
+  <!-- ── Design tokens + data ──────────────────────────────────────────────── -->
+  <script type="text/babel" src="/lib/tokens.jsx"></script>
+  <script>
+  // HS polyfill (se tokens.jsx non carica)
+  if (typeof HS === "undefined") { window.HS = { bg: "#FBF6EE", bgSunken: "#F5EDE4", card: "#fff", hairline: "#EDE8E0", ink: "#2A1D14", ink2: "#6B5B4F", ink3: "#A89A8B", primary: "#E2743A", primarySoft: "#FEF0E8", primaryInk: "#B85A28", sageSoft: "#EEF2E6", sageInk: "#6B8E5A", soonSoft: "#FFF3E0", fontUI: "Inter, system-ui, sans-serif", fontDisplay: "Fraunces, Georgia, serif", r: { sm: 8, md: 10, lg: 12, xl: 16 }, shadow: { card: "0 2px 8px rgba(42,29,20,.06)", modal: "0 8px 32px rgba(42,29,20,.15)" } }; }
+  // MOCK minimo per compatibilita componenti (con fallback)
+  window.MOCK = window.MOCK || { users: [], rooms: [], tasks: [], history: [] };
+  if (window.MOCK.users.length === 0) {
+    if (window.HS_CFG && window.HS_CFG.users) {
+      window.MOCK.users = window.HS_CFG.users.map(function(u) { return { id: u.id, name: u.name, emoji: u.emoji, color: u.color, weekly: 0, total: 0, streak: 0 }; });
+    } else {
+      window.MOCK.users = [
+        { id: 1, name: 'Lu', emoji: '🦦', color: '#E2743A', weekly: 0, total: 0, streak: 0 },
+        { id: 2, name: 'Luca', emoji: '🐢', color: '#6F9E7A', weekly: 0, total: 0, streak: 0 }
+      ];
+    }
+  }
+  </script>
+  
+  
+
+  <!-- ── Component library ─────────────────────────────────────────────────── -->
+  <script type="text/babel" src="/lib/icons.jsx"></script>
+  <script type="text/babel" src="/lib/primitives.jsx"></script>
+  <script type="text/babel" src="/lib/task-cards.jsx"></script>
+  <script type="text/babel" src="/lib/nav-and-quickadd.jsx"></script>
+  <script type="text/babel" src="/lib/screens.jsx"></script>
+  <script type="text/babel" src="/lib/task-detail.jsx"></script>
+  <script type="text/babel" src="/lib/who-did-it.jsx"></script>
+  <script type="text/babel" src="/lib/drawer.jsx"></script>
+  <script type="text/babel" src="/lib/member-and-history.jsx"></script>
+  <script type="text/babel" src="/lib/invite.jsx"></script>
+  <script type="text/babel" src="/lib/settings.jsx"></script>
+  <script type="text/babel" src="/lib/desktop.jsx"></script>
+
+  <!-- ── Main App ──────────────────────────────────────────────────────────── -->
+  <script type="text/babel">
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function roomIcon(iconId) {
+  const name = (iconId || '').split(':')[0];
+  const MAP = {
+    Utensils: 'kitchen', Bath: 'bath', BedDouble: 'bed',
+    Sofa: 'sofa', WashingMachine: 'washing', Flower2: 'flower',
+    utensils: 'kitchen', kitchen: 'kitchen', bath: 'bath', bed: 'bed',
+    sofa: 'sofa', washing: 'washing', flower: 'flower',
+  };
+  return MAP[name] || 'layers';
+}
+
+// roomStats is exported to window by lib/screens.jsx — no need to redefine here.
+// roomIcon must be on window for lib/settings.jsx to find it at render time.
+window.roomIcon = roomIcon;
+
+function getNextDayOfWeek(baseDate, daysOfWeek) {
+  if (!daysOfWeek || daysOfWeek.length === 0) return baseDate;
+  const sortedDays = [...daysOfWeek].sort((a, b) => a - b);
+  let nextDate = new Date(baseDate.getTime());
+  nextDate.setHours(0, 0, 0, 0);
+  const currentDay = nextDate.getDay(); // 0 (Dom) - 6 (Sab)
+  
+  let targetDay = sortedDays.find(d => d > currentDay);
+  
+  if (targetDay === undefined) {
+    targetDay = sortedDays[0];
+    const diff = (7 - currentDay) + targetDay;
+    nextDate.setDate(nextDate.getDate() + diff);
+  } else {
+    const diff = targetDay - currentDay;
+    nextDate.setDate(nextDate.getDate() + diff);
+  }
+  return nextDate;
+}
+window.getNextDayOfWeek = getNextDayOfWeek;
+
+function dueStringToDate(str) {
+  const d = new Date();
+  d.setHours(0,0,0,0);
+  if (str === 'ieri') {
+    d.setDate(d.getDate() - 1);
+  } else if (str === 'oggi') {
+    // oggi
+  } else if (str === 'domani') {
+    d.setDate(d.getDate() + 1);
+  } else {
+    const match = String(str).match(/tra (\d+)g/);
+    if (match) {
+      d.setDate(d.getDate() + parseInt(match[1], 10));
+    }
+  }
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+window.dueStringToDate = dueStringToDate;
+
+// Notifica locale compatibile con mobile. Su Android `new Notification()` lancia
+// "Illegal constructor": va usato il service worker (showNotification). Fallback al
+// costruttore solo su desktop senza SW. Non deve MAI far crashare il chiamante.
+function showLocalNotification(title, options) {
+  try {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+      navigator.serviceWorker.ready
+        .then(function (reg) { return reg.showNotification(title, options); })
+        .catch(function () { try { new Notification(title, options); } catch (e) {} });
+    } else {
+      try { new Notification(title, options); } catch (e) {}
+    }
+  } catch (e) { /* notifica best-effort */ }
+}
+window.showLocalNotification = showLocalNotification;
+
+function checkAndSendNotifications(taskList, notifyPrefs) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (!notifyPrefs) return;
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  
+  // 1. NOTIFICA TASK IN SCADENZA (dueSoon)
+  if (notifyPrefs.dueSoon) {
+    const dueTasks = taskList.filter(t => {
+      if (t.completed) return false;
+      if (t.next_due_date) {
+        return t.next_due_date <= todayStr;
+      }
+      return t.urgency === 'overdue' || t.due === 'oggi' || t.due === 'ieri';
+    });
+
+    if (dueTasks.length > 0) {
+      const lastNotifiedDue = localStorage.getItem('hs-last-notified-due-date');
+      const dueTasksIds = dueTasks.map(t => t.id).sort().join(',');
+      const lastNotifiedDueIds = localStorage.getItem('hs-last-notified-due-ids');
+
+      if (lastNotifiedDue !== todayStr || lastNotifiedDueIds !== dueTasksIds) {
+        localStorage.setItem('hs-last-notified-due-date', todayStr);
+        localStorage.setItem('hs-last-notified-due-ids', dueTasksIds);
+        
+        const names = dueTasks.slice(0, 3).map(t => t.name).join(', ');
+        const count = dueTasks.length;
+        const bodyText = count > 3 
+          ? `${names} e altri ${count - 3} task sono in scadenza!`
+          : `${names} da completare!`;
+
+        showLocalNotification('HomeSync — Task in scadenza', {
+          body: bodyText,
+          icon: '/favicon.png',
+          tag: 'homesync-due',
+        });
+      }
+    }
+  }
+
+  const now = new Date();
+  const currentHHMM = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+
+  // 2. PROMEMORIA MATTINA (morningEnabled)
+  if (notifyPrefs.morningEnabled) {
+    const morningTime = notifyPrefs.reminder_time_morning || '08:00';
+    if (currentHHMM >= morningTime) {
+      const lastNotifiedMorning = localStorage.getItem('hs-last-notified-morning-date');
+      if (lastNotifiedMorning !== todayStr) {
+        localStorage.setItem('hs-last-notified-morning-date', todayStr);
+        
+        const pendingCount = taskList.filter(t => !t.completed).length;
+        const bodyText = pendingCount > 0 
+          ? `Buongiorno! Hai ${pendingCount} task da completare oggi.`
+          : 'Buongiorno! Nessun task in programma per oggi. Goditi la giornata!';
+
+        showLocalNotification('HomeSync — Promemoria Mattutino', {
+          body: bodyText,
+          icon: '/favicon.png',
+          tag: 'homesync-morning',
+        });
+      }
+    }
+  }
+
+  // 3. PROMEMORIA SERA (eveningEnabled)
+  if (notifyPrefs.eveningEnabled) {
+    const eveningTime = notifyPrefs.reminder_time_evening || '20:00';
+    if (currentHHMM >= eveningTime) {
+      const lastNotifiedEvening = localStorage.getItem('hs-last-notified-evening-date');
+      if (lastNotifiedEvening !== todayStr) {
+        localStorage.setItem('hs-last-notified-evening-date', todayStr);
+        
+        const pendingCount = taskList.filter(t => !t.completed).length;
+        const bodyText = pendingCount > 0 
+          ? `Buonasera! Rimangono ancora ${pendingCount} task da completare.`
+          : 'Buonasera! Tutti i task di oggi sono stati completati, ottimo lavoro!';
+
+        showLocalNotification('HomeSync — Promemoria Serale', {
+          body: bodyText,
+          icon: '/favicon.png',
+          tag: 'homesync-evening',
+        });
+      }
+    }
+  }
+}
+
+function calcPoints(task, scoring) {
+  let pts = task.points || (task.difficulty || 3) * 10;
+  if (task.urgency === 'overdue') pts += (scoring.overdueBonus || 0);
+  const uid = task.assignee; const user = (uid === "both" || uid === undefined) ? undefined : MOCK.users.find(u => u.id === uid);
+  const streak = user?.streak || 0;
+  if (streak > 0 && streak % 7 === 0) pts += (scoring.streakBonus || 0);
+  return pts;
+}
+
+// TaskCard — dispatches to variant
+function TaskCard({ variant = 'tap', task, room, assignee, onComplete, onOpen }) {
+  if (variant === 'swipe') return <TaskCardSwipe task={task} room={room} assignee={assignee} onComplete={onComplete} onOpen={onOpen} />;
+  if (variant === 'hold')  return <TaskCardHold  task={task} room={room} assignee={assignee} onComplete={onComplete} onOpen={onOpen} />;
+  return <TaskCardTap task={task} room={room} assignee={assignee} onComplete={onComplete} onOpen={onOpen} />;
+}
+
+// ─── Toast system ────────────────────────────────────────────────────────────
+const ToastContext = React.createContext(null);
+
+function ToastProvider({ children }) {
+  const [toasts, setToasts] = React.useState([]);
+
+  const showToast = React.useCallback((message, type = 'success', duration = 2800) => {
+    const id = Date.now() + Math.random();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, duration);
+  }, []);
+
+  return (
+    <ToastContext.Provider value={showToast}>
+      {children}
+      <div style={{
+        position: 'fixed', bottom: `calc(80px + env(safe-area-inset-bottom))`,
+        left: '50%', transform: 'translateX(-50%)',
+        display: 'flex', flexDirection: 'column-reverse', gap: 8,
+        zIndex: 100, pointerEvents: 'none',
+        width: 'calc(100% - 40px)', maxWidth: 360,
+      }}>
+        {toasts.map(t => (
+          <div key={t.id} style={{
+            background: t.type === 'error' ? '#D94B4B' : t.type === 'warning' ? '#E0A93A' : '#2A1D14',
+            color: '#fff',
+            padding: '12px 18px',
+            borderRadius: 14,
+            fontFamily: HS.fontUI, fontSize: 14, fontWeight: 600,
+            boxShadow: '0 8px 24px rgba(42,29,20,.25)',
+            display: 'flex', alignItems: 'center', gap: 10,
+            animation: 'hs-toast-in .22s ease',
+            pointerEvents: 'auto',
+          }}>
+            <span style={{ fontSize: 18 }}>
+              {t.type === 'error' ? '⚠️' : t.type === 'warning' ? '⏰' : '✓'}
+            </span>
+            {t.message}
+          </div>
+        ))}
+      </div>
+    </ToastContext.Provider>
+  );
+}
+
+function useToast() {
+  return React.useContext(ToastContext);
+}
+
+// ─── Error Boundary ──────────────────────────────────────────────────────────
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(err) { return { error: err }; }
+  componentDidCatch(err, info) { console.error('[HomeSync]', err, info); }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{
+          padding: 32, textAlign: 'center',
+          fontFamily: HS?.fontUI || 'Inter, sans-serif',
+        }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🏚️</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: '#2A1D14', marginBottom: 8 }}>
+            Qualcosa è andato storto
+          </div>
+          <div style={{ fontSize: 13, color: '#9E8572', marginBottom: 24 }}>
+            {this.state.error?.message || 'Errore sconosciuto'}
+          </div>
+          <button
+            onClick={() => this.setState({ error: null })}
+            style={{
+              padding: '12px 24px', border: 'none', borderRadius: 12,
+              background: '#E2743A', color: '#fff',
+              fontWeight: 700, fontSize: 14, cursor: 'pointer',
+            }}
+          >Riprova</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ─── LS persistence ──────────────────────────────────────────────────────────
+const LS_KEY = 'hs-state';
+
+function loadState() {
+  try { const r = localStorage.getItem(LS_KEY); return r ? JSON.parse(r) : null; }
+  catch { return null; }
+}
+function saveState(s) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(s)); } catch {}
+}
+
+// ─── Login Screen ─────────────────────────────────────────────────────────────
+function LoginScreen({ onLoginSuccess }) {
+  const [users, setUsers] = React.useState([]);
+  const [selectedUser, setSelectedUser] = React.useState(null);
+  const [pin, setPin] = React.useState('');
+  const [error, setError] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
+  const showToast = useToast();
+
+  React.useEffect(() => {
+    if (window.HS_API && window.HS_API.listUsers) {
+      window.HS_API.listUsers()
+        .then(res => setUsers(res))
+        .catch(err => {
+          console.warn("Failed to load users for picker, using fallback", err);
+          setUsers([
+            { id: 1, name: 'Lu', emoji: '🦦', color: '#E2743A' },
+            { id: 2, name: 'Luca', emoji: '🐢', color: '#6F9E7A' }
+          ]);
+        });
+    }
+  }, []);
+
+  const handleKeyPress = (num) => {
+    setError('');
+    if (pin.length < 4) {
+      const nextPin = pin + num;
+      setPin(nextPin);
+      if (nextPin.length === 4) {
+        handleLogin(nextPin);
+      }
+    }
+  };
+
+  const handleBackspace = () => {
+    setError('');
+    setPin(prev => prev.slice(0, -1));
+  };
+
+  const handleLogin = (pinToSubmit) => {
+    if (!selectedUser) return;
+    setLoading(true);
+    window.HS_API.login(selectedUser.id, pinToSubmit)
+      .then(res => {
+        setLoading(false);
+        if (res && res.session_token) {
+          // Salva id utente loggato
+          localStorage.setItem('hs-me-id', String(res.user_id));
+          showToast(`Bentornato, ${res.user_name}!`);
+          onLoginSuccess(res.session_token);
+        } else {
+          setError('PIN errato o non valido');
+          setPin('');
+        }
+      })
+      .catch(err => {
+        setLoading(false);
+        setError(err.detail || 'PIN errato o connessione fallita');
+        setPin('');
+      });
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 999,
+      background: '#FBF6EE', display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center', padding: 24,
+      fontFamily: 'Inter, sans-serif'
+    }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, marginBottom: 32 }}>
+        <div style={{
+          width: 64, height: 64, borderRadius: 20,
+          background: '#E2743A', color: '#fff',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: 'Fraunces, serif', fontSize: 34, fontWeight: 600,
+          boxShadow: '0 8px 24px rgba(226,116,58,.3)'
+        }}>H</div>
+        <div style={{ fontFamily: 'Fraunces, serif', fontSize: 24, fontWeight: 600, color: '#2A1D14' }}>HomeSync</div>
+        <div style={{ fontSize: 13, color: '#9E8572' }}>Chi sta usando l'app?</div>
+      </div>
+
+      {!selectedUser ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '100%', maxWidth: 300 }}>
+          {users.map(u => (
+            <button
+              key={u.id}
+              onClick={() => {
+                // Uso domestico SENZA PIN: selezionare l'utente accede subito
+                // (login con PIN vuoto -> il backend risponde success e da' il token).
+                setSelectedUser(u);
+                setLoading(true);
+                setError('');
+                window.HS_API.login(u.id, '')
+                  .then(res => {
+                    setLoading(false);
+                    if (res && res.session_token) {
+                      localStorage.setItem('hs-me-id', String(res.user_id));
+                      showToast(`Bentornato, ${res.user_name}!`);
+                      onLoginSuccess(res.session_token);
+                    } else {
+                      setError('Accesso non riuscito'); setSelectedUser(null);
+                    }
+                  })
+                  .catch(() => { setLoading(false); setError('Connessione fallita'); setSelectedUser(null); });
+              }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 14,
+                padding: '16px 20px', borderRadius: 16, border: '1px solid #EDE8E0',
+                background: '#fff', boxShadow: '0 2px 8px rgba(42,29,20,.03)',
+                textAlign: 'left', outline: 'none'
+              }}
+            >
+              <div style={{
+                width: 44, height: 44, borderRadius: 12, background: u.color + '22',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24
+              }}>{u.emoji || '👤'}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: 16, color: '#2A1D14' }}>{u.name}</div>
+                <div style={{ fontSize: 12, color: '#9E8572' }}>Seleziona per accedere</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: 320 }}>
+          <button
+            onClick={() => { setSelectedUser(null); setPin(''); setError(''); }}
+            style={{
+              background: 'none', border: 'none', color: '#9E8572', fontSize: 13,
+              fontWeight: 600, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 4
+            }}
+          >
+            ← Cambia utente
+          </button>
+          
+          <div style={{ fontSize: 18, fontWeight: 600, color: '#2A1D14', marginBottom: 6 }}>Ciao, {selectedUser.name}!</div>
+          <div style={{ fontSize: 13, color: '#9E8572', marginBottom: 24 }}>Inserisci il tuo PIN di sicurezza</div>
+
+          <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
+            {[0, 1, 2, 3].map(i => (
+              <div
+                key={i}
+                style={{
+                  width: 16, height: 16, borderRadius: '50%',
+                  border: '2px solid #E2743A',
+                  background: pin.length > i ? '#E2743A' : 'transparent',
+                  transition: 'background-color 0.15s ease'
+                }}
+              />
+            ))}
+          </div>
+
+          {error && <div style={{ color: '#D94B4B', fontSize: 13, fontWeight: 600, marginBottom: 20 }}>{error}</div>}
+
+          <div style={{
+            display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12,
+            width: '100%', padding: '0 16px'
+          }}>
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+              <button
+                key={num}
+                onClick={() => handleKeyPress(String(num))}
+                disabled={loading}
+                style={{
+                  height: 60, borderRadius: 16, border: 'none',
+                  background: '#fff', color: '#2A1D14', fontSize: 20, fontWeight: 600,
+                  boxShadow: '0 2px 6px rgba(42,29,20,.04)', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center'
+                }}
+              >{num}</button>
+            ))}
+            <button
+              onClick={() => handleKeyPress('0')}
+              disabled={loading}
+              style={{
+                gridColumn: '2', height: 60, borderRadius: 16, border: 'none',
+                background: '#fff', color: '#2A1D14', fontSize: 20, fontWeight: 600,
+                boxShadow: '0 2px 6px rgba(42,29,20,.04)', display: 'flex',
+                alignItems: 'center', justifyContent: 'center'
+              }}
+            >0</button>
+            <button
+              onClick={handleBackspace}
+              disabled={loading}
+              style={{
+                gridColumn: '3', height: 60, borderRadius: 16, border: 'none',
+                background: '#FFEAEA', color: '#D94B4B', fontSize: 18, fontWeight: 600,
+                boxShadow: '0 2px 6px rgba(42,29,20,.04)', display: 'flex',
+                alignItems: 'center', justifyContent: 'center'
+              }}
+            >⌫</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── App ─────────────────────────────────────────────────────────────────────
+function App() {
+  const [sessionToken, setSessionToken] = React.useState(localStorage.getItem('hs-session-token'));
+  const showToast = useToast();
+  const saved = React.useMemo(() => loadState(), []);
+
+  // ── Core data ──
+  const [tasks, setTasksBase]       = React.useState([]);
+  const [completed, setCompBase]    = React.useState(saved?.completed || MOCK.history || []);
+  const [vacation, setVacBase]      = React.useState(saved?.vacation  ?? false);
+  const [rooms, setRoomsBase]       = React.useState(saved?.rooms     || MOCK.rooms || []);
+  const [members, setMembersBase]   = React.useState(saved?.members   || MOCK.users || []);
+  const [scoring, setScoringBase]   = React.useState(saved?.scoring   || { base: 3, overdueBonus: 1, streakBonus: 5, splitShared: true, weeklyReset: true });
+  const [notifyPrefs, setNotifBase] = React.useState(saved?.notifyPrefs || { morningEnabled: true, reminder_time_morning: '08:00', eveningEnabled: true, reminder_time_evening: '20:00', dueSoon: true, partnerDone: false });
+  const [prefs, setPrefsBase]       = React.useState(saved?.prefs     || { show_urgency_colors: 'true', early_completion_days: '2', grace_period_days: '1' });
+  const loadDataRef = React.useRef(null);
+
+  // ── UI state ──
+  const [activeTab, setActiveTab]     = React.useState('today');
+  const [homeMode, setHomeModeBase]       = React.useState(saved?.homeMode || 'dial');
+  const [cardVariant, setCardVariantBase] = React.useState(saved?.cardVariant || 'tap');
+  const [drawer, setDrawer]           = React.useState(false);
+  const [quickAdd, setQuickAdd]       = React.useState(false);
+  const [taskDetail, setTaskDetail]   = React.useState(null);
+  const [whoDidIt, setWhoDidIt]       = React.useState(null);
+  const [memberEdit, setMemberEdit]   = React.useState(null);
+  const [inviteOpen, setInviteOpen]   = React.useState(false);
+  const [notifSaveState, setNSS]      = React.useState(null);
+
+  // ── History API / Tasto Indietro (Back Button) ──
+  React.useEffect(() => {
+    const handlePopState = (e) => {
+      if (taskDetail) { setTaskDetail(null); return; }
+      if (whoDidIt) { setWhoDidIt(null); return; }
+      if (quickAdd) { setQuickAdd(false); return; }
+      if (memberEdit) { setMemberEdit(null); return; }
+      if (inviteOpen) { setInviteOpen(false); return; }
+      if (drawer) { setDrawer(false); return; }
+
+      if (activeTab === 'today') {
+        if (confirm("Vuoi uscire dall'applicazione?")) {
+          window.close();
+        } else {
+          history.pushState({ root: true }, '');
+        }
+      } else {
+        setActiveTab('today');
+        history.pushState({ root: true }, '');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    if (!history.state) {
+      history.replaceState({ root: true }, '');
+    }
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [drawer, quickAdd, taskDetail, whoDidIt, memberEdit, inviteOpen, activeTab]);
+
+  React.useEffect(() => {
+    const anyOpen = !!(drawer || quickAdd || taskDetail || whoDidIt || memberEdit || inviteOpen);
+    if (anyOpen) {
+      if (!history.state || !history.state.overlay) {
+        history.pushState({ overlay: true }, '');
+      }
+    }
+  }, [drawer, quickAdd, taskDetail, whoDidIt, memberEdit, inviteOpen]);
+
+  const isDesktop = typeof window !== 'undefined' && window.innerWidth > 1100;
+
+  // ── Persistent setters ──
+  const mkState = (overrides) => ({
+    tasks, completed, vacation, rooms, members, scoring, notifyPrefs, prefs,
+    homeMode, cardVariant,
+    ...overrides,
+  });
+  function setTasks(v)       { setTasksBase(v);   saveState(mkState({ tasks: v })); }
+  function setCompleted(v)   { setCompBase(v);    saveState(mkState({ completed: v })); }
+  function setVacation(v)    { setVacBase(v);     saveState(mkState({ vacation: v })); }
+  function setRooms(v)       { setRoomsBase(v);   saveState(mkState({ rooms: v })); }
+  function setMembers(v)     { setMembersBase(v); saveState(mkState({ members: v })); }
+  function setScoring(v)     { setScoringBase(v); saveState(mkState({ scoring: v })); }
+  function setPrefs(v)       { setPrefsBase(v);   saveState(mkState({ prefs: v })); }
+  function setHomeMode(v)    { setHomeModeBase(v);    saveState(mkState({ homeMode: v })); }
+  function setCardVariant(v) { setCardVariantBase(v); saveState(mkState({ cardVariant: v })); }
+  function setNotifyPrefs(v) {
+    const next = typeof v === 'function' ? v(notifyPrefs) : v;
+    setNotifBase(next);
+    setNSS('saving');
+    setTimeout(() => { setNSS('saved'); setTimeout(() => setNSS(null), 2000); }, 600);
+    saveState(mkState({ notifyPrefs: next }));
+  }
+
+  React.useEffect(() => {
+    const el = document.getElementById('hs-loading');
+    if (el) {
+      el.style.transition = 'opacity .3s ease';
+      el.style.opacity = '0';
+      setTimeout(() => el.remove(), 350);
+    }
+  }, []);
+
+  // ── PWA install prompt ──
+  const [installPrompt, setInstallPrompt] = React.useState(null);
+  const [showInstall, setShowInstall]     = React.useState(false);
+  React.useEffect(() => {
+    const handler = (e) => { e.preventDefault(); setInstallPrompt(e); setShowInstall(true); };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  // ── Notification permission ──
+  React.useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      const tid = setTimeout(() => {
+        Notification.requestPermission().catch(() => {});
+      }, 2000);
+      return () => clearTimeout(tid);
+    }
+  }, []);
+
+  // ── Service Worker registration ──
+  React.useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      // Registrazione + check aggiornamenti. Il RELOAD su nuova versione e'
+      // gestito dallo script inline early (controllerchange) in <body>, che
+      // funziona anche se React non monta. Qui solo registrazione (idempotente).
+      navigator.serviceWorker.register('/sw.js').then(reg => {
+        console.info('[HomeSync] SW registrato:', reg.scope);
+        try { reg.update(); } catch (e) {}
+      }).catch(err => {
+        console.warn('[HomeSync] SW fallito:', err);
+      });
+    }
+  }, []);
+
+  // ── Local Notifications Triggers ──
+  React.useEffect(() => {
+    if (tasks && tasks.length > 0) {
+      checkAndSendNotifications(tasks, notifyPrefs);
+    }
+  }, [tasks, notifyPrefs]);
+
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      if (tasks && tasks.length > 0) {
+        checkAndSendNotifications(tasks, notifyPrefs);
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [tasks, notifyPrefs]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    async function loadData() {
+      try {
+        const [roomsRes, tasksRes, qaRes, usersRes, lbRes, scoringBaseRes] = await Promise.all([
+          window.HS_API.listRooms().catch(() => []),
+          window.HS_API.listTasks().catch(() => []),
+          window.HS_API.getQuickActions ? window.HS_API.getQuickActions().catch(() => []) : Promise.resolve([]),
+          window.HS_API.listUsers().catch(function(){ return window.HS_CFG ? window.HS_CFG.users : []; }),
+          window.HS_API.leaderboard().catch(() => ({ leaderboard: [] })),
+          window.HS_API.getScoringBase ? window.HS_API.getScoringBase().catch(() => null) : Promise.resolve(null),
+        ]);
+        if (scoringBaseRes && scoringBaseRes.base) {
+          setScoringBase(function(prev) { return { ...prev, base: scoringBaseRes.base }; });
+        }
+        if (cancelled) return;
+        // Mappa stanze backend in formato frontend
+        var rooms = roomsRes.map(function(r) {
+          var icons = { Utensils: 'Utensils', Bath: 'Bath', Sofa: 'Sofa', BedDouble: 'BedDouble', WashingMachine: 'WashingMachine', Flower2: 'Flower2' };
+          var defaultColors = { Utensils: '#E2743A', Bath: '#6F9E7A', Sofa: '#E0A93A', BedDouble: '#8C5AC8', WashingMachine: '#D94B4B', Flower2: '#6F9E7A' };
+          
+          var iconPart = r.icon || 'Sofa';
+          var colorPart = '#E2743A';
+          if (iconPart.indexOf(':') !== -1) {
+            var parts = iconPart.split(':');
+            iconPart = parts[0];
+            colorPart = parts[1];
+          } else {
+            colorPart = defaultColors[iconPart] || '#E2743A';
+          }
+          
+          return {
+            id: (r.name||'').toLowerCase().replace(/[^a-z0-9]/g,'_') || 'room',
+            _backendId: r.id,
+            name: r.name,
+            icon: icons[iconPart] || iconPart || 'Sofa',
+            pct: Math.round(r.completion_percentage || 0),
+            total: 0,
+            done: 0,
+            color: colorPart
+          };
+        });
+        // Mappa task backend in formato frontend
+        var sb = (scoringBaseRes && scoringBaseRes.base) ? scoringBaseRes.base : (scoring ? scoring.base : 10);
+        var today = new Date(); today.setHours(0,0,0,0);
+        var regularTasks = tasksRes.map(function(t) {
+          var room = roomsRes.find(function(r) { return r.id === t.room_id; });
+          var roomKey = room ? (room.name||'').toLowerCase().replace(/[^a-z0-9]/g,'_') : 'room';
+          
+          // Estraiamo stanze multiple dai tags
+          var roomIds = [t.room_id];
+          if (t.tags) {
+            try {
+              var parsedTags = JSON.parse(t.tags);
+              if (Array.isArray(parsedTags)) {
+                parsedTags.forEach(function(tag) {
+                  var clean = String(tag).replace(/^room:/, '');
+                  if (/^\d+$/.test(clean)) {
+                    var rid = parseInt(clean, 10);
+                    if (!roomIds.includes(rid)) roomIds.push(rid);
+                  }
+                });
+              }
+            } catch(e) {}
+          }
+          
+          var roomKeys = roomIds.map(function(rid) {
+            var r = roomsRes.find(function(rm) { return rm.id === rid; });
+            return r ? (r.name||'').toLowerCase().replace(/[^a-z0-9]/g,'_') : null;
+          }).filter(Boolean);
+          
+          if (roomKeys.length === 0) roomKeys = [roomKey];
+
+          var dueDate = t.next_due_date || t.instance_date;
+          var d = dueDate ? Math.round((new Date(dueDate+'T00:00:00') - today) / 86400000) : 99;
+          var urgency = d < 0 ? 'overdue' : d === 0 ? 'urgent' : d <= 3 ? 'soon' : 'ok';
+          var dueLabel = d < -1 ? (-d)+'g fa' : d === -1 ? 'ieri' : d === 0 ? 'oggi' : d === 1 ? 'domani' : 'tra '+d+'g';
+          var assignee;
+          switch(t.assignment_type) {
+            case 'FIXED_A': assignee = 1; break;
+            case 'FIXED_B': assignee = 2; break;
+            case 'TOGETHER': assignee = 'both'; break;
+            case 'ALTERNATING': assignee = t.last_performer_id === 1 ? 2 : 1; break;
+            default: assignee = 1;
+          }
+           return { id: 't'+t.id + (t.instance_date ? '_'+t.instance_date : ''), _backendId: t.id, name: t.name, room: roomKey, rooms: roomKeys, roomIds: roomIds, roomId: t.room_id, due: dueLabel, urgency: urgency, assignee: assignee, everyDays: t.frequency_days, next_due_date: dueDate, difficulty: t.difficulty || 3, points: (t.difficulty || 3) * sb, tags: t.tags, is_quick_action: false };
+        });
+        // Aggiungi quick actions all'array tasks con flag is_quick_action: true
+        var qaTasks = (qaRes || []).map(function(t) {
+          return { id: 'qa'+t.id, _backendId: t.id, name: t.name, room: 'cucina', rooms: ['cucina'], roomIds: [t.room_id || 1], roomId: t.room_id || 1, due: '', urgency: 'ok', assignee: 'both', everyDays: 9999, next_due_date: '9999-12-31', difficulty: t.difficulty || 2, points: (t.difficulty || 2) * sb, tags: t.tags, is_quick_action: true };
+        });
+        var tasks = regularTasks.concat(qaTasks);
+
+        // Mappa utenti
+        var lb = (lbRes && lbRes.leaderboard) || [];
+        var users = usersRes.map(function(u) {
+          var e = lb.find(function(x) { return x.user_id === u.id; }) || {};
+          return { id: u.id, name: u.name, emoji: u.emoji || '👤', color: u.color || '#888', weekly: e.weekly_points || 0, total: u.total_points || 0, streak: 0 };
+        });
+        setRoomsBase(rooms); setTasksBase(tasks); setMembersBase(users);
+        window.MOCK.users = users; window.MOCK.rooms = rooms;
+        // Ordina utenti con corrente al primo posto
+        var me = window.HS_API ? window.HS_API.getMe() : null;
+        if (me && window.MOCK.users.length > 1 && window.MOCK.users[0].id !== me) {
+          var idx = window.MOCK.users.findIndex(function(u) { return u.id === me; });
+          if (idx > 0) { window.MOCK.users = [window.MOCK.users[idx]].concat(window.MOCK.users.filter(function(u, j) { return j !== idx; })); }
+        }
+      } catch(e) { console.warn('[HS] loadData fail', e); }
+    }
+    loadDataRef.current = loadData;
+    loadData();
+    const tid = setInterval(loadData, 30000);
+    return () => { cancelled = true; clearInterval(tid); };
+  }, []);
+  // ── History dal backend ──
+  React.useEffect(function() {
+    if (!sessionToken) return;
+    window.HS_API.history(90).then(function(data) {
+      if (!Array.isArray(data)) return;
+      var mapped = data.map(function(c) {
+        var u = (window.MOCK && window.MOCK.users) ? window.MOCK.users.find(function(x) { return x.name === c.user_name; }) : null;
+        return {
+          id: 'c' + c.id,
+          _completionId: c.id,
+          _backendId: c.task_id,
+          name: c.task_name,
+          completedBy: u ? u.id : 1,
+          completedAt: new Date(c.completed_at).getTime(),
+          awardedPoints: c.points_awarded,
+          points: c.points_awarded,
+        };
+      });
+      setCompBase(mapped);
+    }).catch(function() {});
+  }, [sessionToken]);
+
+  // ── Haptic feedback helper ──
+  const vibrate = (pattern = [20]) => {
+    if ('vibrate' in navigator) navigator.vibrate(pattern);
+  };
+
+  // ── Task completion ──
+  function handleComplete(task) {
+    if (task.assignee === 'both') { setWhoDidIt(task); return; }
+    doComplete(task, task.assignee);
+  }
+
+  async function doComplete(task, completedBy) {
+    var bid=task._backendId||parseInt(String(task.id).replace(/^t/,"",10));
+    if(bid){
+      var completePayload = {
+        use_theoretical_date: false,
+        user_id: (completedBy === 'both') ? null : completedBy
+      };
+      if (task.instance_date) completePayload.instance_date = task.instance_date;
+      try {
+        // Il backend crea il completamento, calcola i punti e avanza la scadenza
+        // secondo il tipo di ricorrenza del task (giorni fissi o intervallo).
+        // Il client NON ricalcola nulla: niente updateTask (corrompeva la
+        // difficolta') ne' points_awarded (divergeva dal backend).
+        await window.HS_API.completeTask(bid, completePayload);
+        if (loadDataRef.current) loadDataRef.current();
+      } catch(e) {
+        console.error('HS complete fail', e);
+      }
+    }
+    const pts = calcPoints(task, scoring);
+    const awardedPoints = (completedBy === 'both' && scoring.splitShared)
+      ? Math.ceil(pts / 2) : pts;
+    const entry = { ...task, completedBy, completedAt: Date.now(), awardedPoints };
+
+    // Update MOCK.users points
+    if (completedBy === 'both') {
+      MOCK.users.forEach(u => { u.weekly = (u.weekly || 0) + awardedPoints; u.total = (u.total || 0) + awardedPoints; });
+    } else {
+      const u = MOCK.users.find(x => x.id === completedBy);
+      if (u) { u.weekly = (u.weekly || 0) + awardedPoints; u.total = (u.total || 0) + awardedPoints; }
+    }
+
+    // Ottimistic update: rimuovi l'istanza completata, il polling 30s rigenera dal backend
+    var newTasks = tasks.filter(function(t) { return t.id !== task.id; });
+
+    setTasks(newTasks);
+    if (window.refreshInstances) window.refreshInstances(newTasks);
+    setCompleted([entry, ...completed]);
+    setWhoDidIt(null);
+
+    vibrate([15, 30, 15]);
+    const user = completedBy === 'both' ? 'Entrambi' : (MOCK.users.find(u => u.id === completedBy)?.name || '');
+    showToast(`✓ ${task.name} — +${awardedPoints} pt`, 'success');
+
+    // Notify partner
+    if (notifyPrefs.partnerDone && 'Notification' in window && Notification.permission === 'granted') {
+      showLocalNotification('HomeSync', { body: `${user} ha completato: ${task.name}` });
+    }
+  }
+
+  async function handleUncomplete(entry) {
+    const bid = entry._backendId || parseInt(String(entry.id).replace(/^t/, ''), 10);
+    if (bid) {
+      try { await window.HS_API.undoComplete(bid); }
+      catch(e) { showToast('Errore annullamento', 'error'); return; }
+    }
+    setCompleted(completed.filter(c => !(c.id === entry.id && c.completedAt === entry.completedAt)));
+    if (!tasks.find(t => t.id === entry.id)) {
+      setTasks([{ ...entry, completed: false, urgency: 'ok' }, ...tasks]);
+    }
+    showToast('Task ripristinato', 'warning');
+    if (loadDataRef.current) loadDataRef.current();
+  }
+
+  async function handleAddTask(taskData) {
+    var rid = (function() {
+      if (typeof taskData.roomId === 'number') return taskData.roomId;
+      if (typeof taskData.room === 'number') return taskData.room;
+      var slug = String(taskData.room || taskData.roomId || '').toLowerCase();
+      for (var i = 0; i < MOCK.rooms.length; i++) {
+        var r = MOCK.rooms[i];
+        if (r.id === slug || (r.name || '').toLowerCase() === slug || (r.name || '').toLowerCase().replace(/[^a-z0-9]/g,'_') === slug) {
+          return typeof r._backendId === 'number' ? r._backendId : r.id;
+        }
+      }
+      return (MOCK.rooms[0] && MOCK.rooms[0]._backendId) || 1;
+    })();
+    var freq = (taskData.everyDays !== undefined) ? taskData.everyDays : (taskData.every !== undefined) ? taskData.every : 7;
+    var roomSlug = (function() {
+      for (var i = 0; i < MOCK.rooms.length; i++) {
+        var r = MOCK.rooms[i];
+        if ((r._backendId || r.id) == rid) return r.id;
+      }
+      return taskData.room || (MOCK.rooms[0] && MOCK.rooms[0].id) || 'cucina';
+    })();
+    const nd = taskData.initial_due_date || taskData.next_due_date
+      || (window.dueStringToDate ? window.dueStringToDate(taskData.due || 'oggi') : new Date().toISOString().slice(0,10));
+
+    var finalTags = taskData.tags;
+    if (!finalTags) {
+      finalTags = JSON.stringify(['room:' + rid]);
+    }
+
+    try {
+      const created = await window.HS_API.createTask({
+        name: taskData.name,
+        room_id: rid,
+        frequency_days: freq,
+        assignment_type: taskData.assignee === "both" ? "TOGETHER" : taskData.assignee === 1 ? "FIXED_A" : "FIXED_B",
+        difficulty: taskData.difficulty !== undefined ? taskData.difficulty : 3,
+        initial_due_date: nd,
+        is_quick_action: taskData.is_quick_action || false,
+        tags: finalTags
+      });
+      
+      var roomIds = [];
+      if (created.tags) {
+        try {
+          var parsed = JSON.parse(created.tags);
+          if (Array.isArray(parsed)) {
+            parsed.forEach(function(tag) {
+              if (String(tag).startsWith('room:')) {
+                roomIds.push(parseInt(String(tag).replace('room:', ''), 10));
+              }
+            });
+          }
+        } catch(e) {}
+      }
+      if (roomIds.length === 0) roomIds = [rid];
+      
+      var roomKeys = roomIds.map(function(rId) {
+        var r = MOCK.rooms.find(function(rm) { return rm.id === rId || rm._backendId === rId; });
+        return r ? (r.name||'').toLowerCase().replace(/[^a-z0-9]/g,'_') : null;
+      }).filter(Boolean);
+      if (roomKeys.length === 0) roomKeys = [roomSlug];
+
+      const newTask = {
+        id: 't' + created.id,
+        _backendId: created.id,
+        name: created.name,
+        room: roomSlug,
+        rooms: roomKeys,
+        roomIds: roomIds,
+        roomId: rid,
+        assignee: taskData.assignee || 'both',
+        urgency: 'soon',
+        due: taskData.due || 'oggi',
+        next_due_date: created.next_due_date || nd,
+        everyDays: created.frequency_days,
+        points: (created.difficulty || 3) * (scoring?.base || 10),
+        is_quick_action: created.is_quick_action,
+        difficulty: created.difficulty || 3,
+        tags: created.tags
+      };
+      
+      const next = [newTask, ...tasks];
+      setTasks(next);
+      if (window.refreshInstances) window.refreshInstances(next);
+      setQuickAdd(false);
+      showToast(`"${taskData.name}" aggiunto`);
+    } catch (e) {
+      console.error('HS create fail', e);
+      showToast('Errore creazione task', 'error');
+    }
+  }
+  function handleUpdateTask(id, payload) {
+    window.HS_API.updateTask(id, payload)
+      .then(function() {
+        if (loadDataRef.current) loadDataRef.current();
+        showToast('Compito aggiornato!');
+      })
+      .catch(function(err) {
+        console.error("Failed to update task", err);
+        showToast('Errore aggiornamento compito', 'error');
+      });
+  }
+  function handleSaveTask(draft) {
+    var bid=draft._backendId||parseInt(String(draft.id).replace(/^t/,"",10));
+    if(bid){
+      var rid = (function() {
+        if (typeof draft.roomId === 'number') return draft.roomId;
+        if (typeof draft.roomId === 'string' && /^\d+$/.test(draft.roomId)) return parseInt(draft.roomId, 10);
+        var slug = String(draft.room || draft.roomId || '').toLowerCase();
+        for (var i = 0; i < MOCK.rooms.length; i++) {
+          var r = MOCK.rooms[i];
+          if (r.id === slug || (r.name || '').toLowerCase() === slug) {
+            return typeof r._backendId === 'number' ? r._backendId : r.id;
+          }
+        }
+        var staticRooms = { cucina:1, bagno:2, soggiorno:3, camera:4, bagnetto:5, balcone:6, studio:7, terrazzo:8 };
+        if (staticRooms[slug]) return staticRooms[slug];
+        return 1;
+      })();
+
+      var payload = {
+        name: draft.name,
+        room_id: rid,
+        frequency_days: draft.everyDays || 0,
+        assignment_type: draft.assignee === "both" ? "TOGETHER" : draft.assignee === 1 ? "FIXED_A" : "FIXED_B",
+        difficulty: Math.round(draft.points/(scoring?.base || 10)) || 3,
+        tags: draft.tags,
+        scoring_base: scoring?.base || 10
+      };
+      if (draft.next_due_date) payload.next_due_date = draft.next_due_date;
+      window.HS_API.updateTask(bid, payload).then(function() {
+        if (loadDataRef.current) loadDataRef.current();
+      }).catch(function(e){ console.error('HS update fail',e); });
+    }
+    const next = tasks.map(t => (t.id === draft.id || t._backendId === bid) ? { ...t, ...draft } : t);
+    setTasks(next);
+    if (window.refreshInstances) window.refreshInstances(next);
+
+    // Aggiorna anche le completion di oggi in locale
+    const isBoth = draft.completedBy === 'both' || draft.assignee === 'both';
+    const pts = (draft.difficulty || Math.round((draft.points || 0) / (scoring?.base || 3)) || 2) * (scoring?.base || 10);
+    const newAwarded = (isBoth && scoring.splitShared) ? Math.ceil(pts / 2) : pts;
+
+    const nextCompleted = completed.map(c => {
+      const matchId = c._backendId === bid || c.id === draft.id || c.id === 't' + bid;
+      if (matchId) {
+        return { 
+          ...c, 
+          ...draft, 
+          awardedPoints: newAwarded
+        };
+      }
+      return c;
+    });
+    setCompleted(nextCompleted);
+
+    setTaskDetail(null);
+    showToast('Task aggiornato');
+  }
+
+  function handleCreateRoom(roomData) {
+    var iconWithColor = (roomData.icon || 'Sofa') + (roomData.color ? ':' + roomData.color : '');
+    window.HS_API.createRoom({ name: roomData.name, icon: iconWithColor })
+      .then(function() {
+        showToast(`Stanza "${roomData.name}" creata`);
+        if (loadDataRef.current) loadDataRef.current();
+      })
+      .catch(function(e) {
+        console.error('HS create room fail', e);
+        showToast('Errore creazione stanza', 'error');
+      });
+  }
+
+  function handleUpdateRoom(room) {
+    const bid = room._backendId;
+    if (bid) {
+      var iconWithColor = (room.icon || 'Sofa') + (room.color ? ':' + room.color : '');
+      window.HS_API.updateRoom(bid, { name: room.name, icon: iconWithColor })
+        .then(function() {
+          showToast('Stanza aggiornata');
+          if (loadDataRef.current) loadDataRef.current();
+        })
+        .catch(function(e) {
+          console.error('HS update room fail', e);
+          showToast('Errore aggiornamento stanza', 'error');
+        });
+    }
+  }
+
+  function handleDeleteRoom(room) {
+    const bid = room._backendId;
+    if (bid) {
+      if (confirm(`Eliminare la stanza "${room.name}"? Tutti i task associati rimarranno attivi.`)) {
+        window.HS_API.deleteRoom(bid, true)
+          .then(function() {
+            showToast('Stanza eliminata', 'warning');
+            if (loadDataRef.current) loadDataRef.current();
+          })
+          .catch(function(e) {
+            console.error('HS delete room fail', e);
+            showToast('Errore eliminazione stanza', 'error');
+          });
+      }
+    }
+  }
+
+  function handleDeleteTask(task) {
+    var bid=task._backendId||parseInt(String(task.id).replace(/^t/,"",10));if(bid){window.HS_API.deleteTask(bid).catch(function(e){});}
+    const next = tasks.filter(t => t.id !== task.id);
+    setTasks(next);
+    if (window.refreshInstances) window.refreshInstances(next);
+    setTaskDetail(null);
+    showToast('Task eliminato', 'warning');
+  }
+
+  function handleSaveMember(updated) {
+    setMembers(members.map(m => m.id === updated.id ? updated : m));
+    const idx = MOCK.users.findIndex(u => u.id === updated.id);
+    if (idx !== -1) MOCK.users[idx] = { ...MOCK.users[idx], ...updated };
+    // Persisti su backend
+    window.HS_API.patchUser(updated.id, { name: updated.name, emoji: updated.emoji, color: updated.color }).catch(function(e){});
+    setMemberEdit(null);
+    showToast('Profilo aggiornato');
+  }
+
+  async function handleReset() {
+    if (confirm('Ripristinare tutti i dati di default? Verranno cancellati anche i dati sul server.')) {
+      try { await window.HS_API.resetTest(); } catch(e) {}
+      localStorage.removeItem(LS_KEY);
+      window.location.reload();
+    }
+  }
+
+  function navigate(tab) { setActiveTab(tab); setDrawer(false); }
+
+  // ── Screen router ──
+  // Note: screen component prop names must match lib/screens.jsx signatures exactly
+  function renderScreen() {
+    switch (activeTab) {
+      case 'today':
+        return homeMode === 'channels'
+          ? <HomeChannels
+              tasks={tasks} tasksCompleted={completed}
+              onComplete={handleComplete} onOpen={setTaskDetail}
+              onGoToScore={() => navigate('score')}
+              onSnooze={(t) => {}} // future
+              cardVariant={cardVariant}
+            />
+          : <HomeDial
+              tasks={tasks} tasksCompleted={completed}
+              onComplete={handleComplete} onOpen={setTaskDetail}
+              onGoToScore={() => navigate('score')}
+              onSnooze={(t) => {}}
+              cardVariant={cardVariant}
+            />;
+      case 'rooms':
+        return <RoomsScreen tasks={tasks} completed={completed} rooms={rooms} onComplete={handleComplete} onOpen={setTaskDetail} />;
+      case 'calendar':
+        return <CalendarScreen tasks={tasks} onOpen={setTaskDetail} />;
+      case 'score':
+        return <ScoreScreen completed={completed} />;
+      case 'history':
+        return <HistoryScreen completed={completed} onOpen={setTaskDetail} onUndo={handleUncomplete} />;
+      case 'settings':
+        return <SettingsScreen
+          vacation={vacation} setVacation={setVacation}
+          rooms={rooms} setRooms={setRooms}
+          scoring={scoring} setScoring={setScoring}
+          members={members} setMembers={setMembers}
+          onEditMember={setMemberEdit}
+          notifyPrefs={notifyPrefs} setNotifyPrefs={setNotifyPrefs}
+          prefs={prefs} setPrefs={setPrefs}
+          notifSaveState={notifSaveState}
+          onInvite={() => setInviteOpen(true)}
+          onShowHistory={() => setActiveTab('history')}
+          onReset={handleReset}
+          tasks={tasks} completed={completed}
+          homeMode={homeMode} setHomeMode={setHomeMode}
+          cardVariant={cardVariant} setCardVariant={setCardVariant}
+          onCreateRoom={handleCreateRoom}
+          onUpdateRoom={handleUpdateRoom}
+          onDeleteRoom={handleDeleteRoom}
+          onCreateTask={handleAddTask}
+          onUpdateTask={handleUpdateTask}
+          onDeleteTask={handleDeleteTask}
+        />;
+      default: return null;
+    }
+  }
+
+  // ── Header ──
+  function Header() {
+    return (
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 30,
+        background: HS.bg + 'EE',
+        backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
+        borderBottom: `1px solid ${HS.hairline}`,
+        padding: '10px 14px 8px',
+        display: 'flex', alignItems: 'center', gap: 8,
+      }}>
+        <div style={{
+          fontFamily: HS.fontDisplay, fontSize: 21, fontWeight: 500,
+          letterSpacing: -0.5, color: HS.ink, flex: 1,
+        }}>HomeSync</div>
+
+        <button
+          onClick={() => setDrawer(true)}
+          aria-label="Apri menu"
+          style={{
+            border: 'none', background: HS.card, borderRadius: 10, padding: 8,
+            boxShadow: HS.shadow.card,
+          }}>
+          <Icon name="menu" size={20} color={HS.ink2} strokeWidth={2} />
+        </button>
+      </div>
+    );
+  }
+
+  // ── Shell ──
+  const shell = (
+    <div style={{
+      position: 'relative', width: '100%', height: '100%',
+      background: HS.bg, display: 'flex', flexDirection: 'column', overflow: 'hidden',
+    }}>
+      <Header />
+
+      <div style={{ flex: 1, overflowY: 'auto', position: 'relative', WebkitOverflowScrolling: 'touch' }}>
+        <ErrorBoundary key={activeTab}>
+          {renderScreen()}
+        </ErrorBoundary>
+      </div>
+
+      <BottomTabBar active={activeTab} onChange={navigate} onAdd={() => setQuickAdd(true)} />
+
+      {/* Overlays */}
+      <DrawerMenu
+        open={drawer} onClose={() => setDrawer(false)}
+        onNavigate={navigate} activeTab={activeTab}
+        vacation={vacation} setVacation={setVacation}
+      />
+      {quickAdd && <QuickAddSheet open={quickAdd} onClose={() => setQuickAdd(false)} onCreate={handleAddTask} onComplete={handleComplete} rooms={rooms} scoring={scoring} />}
+      {taskDetail && (
+        <TaskDetailSheet
+          open task={taskDetail}
+          onClose={() => setTaskDetail(null)}
+          onSave={handleSaveTask} onDelete={handleDeleteTask}
+          onComplete={(t) => { handleComplete(t); setTaskDetail(null); }}
+          onUncomplete={(t) => { handleUncomplete(t); setTaskDetail(null); }}
+          rooms={rooms} completed={completed} scoring={scoring}
+        />
+      )}
+      {whoDidIt && (
+        <WhoDidItSheet
+          open task={whoDidIt}
+          onPick={(who) => doComplete(whoDidIt, who)}
+          onClose={() => setWhoDidIt(null)}
+        />
+      )}
+      {memberEdit && (
+        <MemberEditSheet
+          open member={memberEdit}
+          onClose={() => setMemberEdit(null)}
+          onSave={handleSaveMember}
+        />
+      )}
+      {inviteOpen && <InviteSheet open onClose={() => setInviteOpen(false)} />}
+    </div>
+  );
+
+  if (!sessionToken) {
+    return <LoginScreen onLoginSuccess={(token) => setSessionToken(token)} />;
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopDashboard
+        tasks={tasks} completed={completed}
+        onComplete={handleComplete} onOpenTask={setTaskDetail}
+        onAdd={() => setQuickAdd(true)}
+        vacation={vacation} activeTab={activeTab} onNavigate={navigate}
+      >
+        {activeTab !== 'today' ? shell : undefined}
+      </DesktopDashboard>
+    );
+  }
+
+  return (
+    <>
+      {shell}
+      {/* PWA install banner */}
+      {showInstall && (
+        <div id="hs-install-banner" role="complementary" aria-label="Installa HomeSync">
+          <div class="hs-install-icon" aria-hidden="true">H</div>
+          <div class="hs-install-text">
+            <div class="hs-install-title">Installa HomeSync</div>
+            <div class="hs-install-sub">Aggiungila alla home screen</div>
+          </div>
+          <button class="hs-install-btn" onClick={async () => {
+            if (installPrompt) {
+              installPrompt.prompt();
+              const { outcome } = await installPrompt.userChoice;
+              if (outcome === 'accepted') setShowInstall(false);
+            }
+          }}>Installa</button>
+          <button class="hs-dismiss-btn" onClick={() => setShowInstall(false)} aria-label="Chiudi">×</button>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ─── Root render ──────────────────────────────────────────────────────────────
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
+  <ToastProvider>
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
+  </ToastProvider>
+);
+  </script>
+</body>
+</html>

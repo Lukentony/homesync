@@ -1,0 +1,12 @@
+config.env
+.env
+data/
+*.db*
+backups/
+__pycache__/
+*.pyc
+*.bak*
+*.log
+.venv/
+venv/
+vendor/
