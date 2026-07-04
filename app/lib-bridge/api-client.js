@@ -10,8 +10,8 @@ const DEFAULT_CFG = {
 apiBaseUrl: '/api',
 appName: 'HomeSync',
 users: [
-{ id: 1, name: 'Lu', emoji: '🦦', color: '#E2743A' },
-{ id: 2, name: 'Luca', emoji: '🐢', color: '#6F9E7A' },
+{ id: 1, name: 'Utente A', emoji: '🦦', color: '#E2743A' },
+{ id: 2, name: 'Utente B', emoji: '🐢', color: '#6F9E7A' },
 ],
 features: { vacationMode: true, n8nIntegration: true, weeklyLeaderboard: true },
 };

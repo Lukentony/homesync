@@ -44,8 +44,8 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 origins = [
-    os.getenv("PUBLIC_BASE_URL", ""),
-    os.getenv("INTERNAL_BASE_URL", "")
+    os.getenv("PUBLIC_BASE_URL", "https://homesync.tuodominio.com").strip(),
+    os.getenv("INTERNAL_BASE_URL", "http://localhost:8000").strip()
 ]
 
 app.add_middleware(

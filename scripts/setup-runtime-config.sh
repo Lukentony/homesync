@@ -1,4 +1,6 @@
 #!/bin/bash
+# DEPRECATED: Il runtime-config.json e' generato automaticamente dal entrypoint.
+# Usare solo per debug locale.
 # Setup runtime configuration for frontend PWA
 # This script generates the runtime-config.json that contains the API base URL
 # Used when frontend needs to communicate with backend in Docker networking
