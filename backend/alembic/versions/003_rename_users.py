@@ -1,4 +1,4 @@
-"""rename users to Lu Luca"""
+"""rename users to Utente A Utente B"""
 from alembic import op
 import sqlalchemy as sa
 
@@ -8,8 +8,8 @@ branch_labels = None
 depends_on = None
 
 def upgrade():
-    op.execute("UPDATE users SET name='Lu' WHERE id=1")
-    op.execute("UPDATE users SET name='Luca' WHERE id=2")
+    op.execute("UPDATE users SET name='Utente A' WHERE id=1")
+    op.execute("UPDATE users SET name='Utente B' WHERE id=2")
 
 def downgrade():
     op.execute("UPDATE users SET name='User 1' WHERE id=1")

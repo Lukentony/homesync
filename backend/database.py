@@ -41,8 +41,8 @@ async def init_db_settings(session: AsyncSession):
             await session.execute(text("INSERT OR REPLACE INTO settings (key, value) VALUES ('vapid_private_key', :v)").bindparams(v=priv))
             await session.execute(text("INSERT OR REPLACE INTO settings (key, value) VALUES ('vapid_claims_email', 'luca@homesync.local')"))
     
-    # Inserimento utenti Lu e Luca (con onboarding_token obbligatorio)
-    await session.execute(text("INSERT OR IGNORE INTO users (id, name, onboarding_token, total_points) VALUES (1, 'Lu', 'token_lu_initial', 0)"))
-    await session.execute(text("INSERT OR IGNORE INTO users (id, name, onboarding_token, total_points) VALUES (2, 'Luca', 'token_luca_initial', 0)"))
+    # Inserimento utenti (placeholder) (con onboarding_token obbligatorio)
+    await session.execute(text("INSERT OR IGNORE INTO users (id, name, onboarding_token, total_points) VALUES (1, 'Utente A', 'token_a_initial', 0)"))
+    await session.execute(text("INSERT OR IGNORE INTO users (id, name, onboarding_token, total_points) VALUES (2, 'Utente B', 'token_b_initial', 0)"))
 
     await session.commit()
