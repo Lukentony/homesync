@@ -45,7 +45,7 @@ homesync/
 
 - **Backend**: FastAPI (async), SQLAlchemy 2.0, SQLite WAL
 - **Frontend**: React 18 self-hosted (no CDN), JSX compilato in-browser da Babel standalone — nessun build step
-- **Auth**: PIN numerico 4-6 cifre → SHA-256 → session token in localStorage
+- **Auth**: PIN numerico opzionale (4-6 cifre) → scrypt → session token in localStorage
 - **Push**: VAPID keys generate automaticamente al primo avvio e salvate nel DB
 - **Container**: Docker, Docker Compose
 - **UI**: solo italiano, non internazionalizzata
