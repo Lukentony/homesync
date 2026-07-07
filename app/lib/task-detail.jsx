@@ -174,8 +174,12 @@ if (h < 24) return `${h}h fa`;
 const d = Math.floor(h / 24);
 return `${d}g fa`;
 };
+// I completamenti dal backend hanno id 'c'+completion.id (es. 'c12'), non
+// l'id del task: il confronto va fatto su _backendId (task_id), non su id,
+// altrimenti lo storico risulta sempre vuoto anche con completamenti reali.
+const taskBackendId = draft._backendId || draft.id;
 const realHistory = (completed || [])
-.filter(t => t.id === draft.id)
+.filter(t => (t._backendId ?? t.id) === taskBackendId)
 .sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0))
 .slice(0, 5);
 

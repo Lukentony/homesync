@@ -567,8 +567,14 @@ function LoginScreen({ onLoginSuccess }) {
             <button
               key={u.id}
               onClick={() => {
-                // Uso domestico SENZA PIN: selezionare l'utente accede subito
-                // (login con PIN vuoto -> il backend risponde success e da' il token).
+                // Tenta il login con PIN vuoto: se l'utente non ha un PIN
+                // impostato il backend risponde success subito (uso
+                // domestico senza PIN). Se invece un PIN e' configurato,
+                // il backend risponde 401 ("PIN non valido") - in quel
+                // caso NON si torna al selettore, si mostra il tastierino
+                // PIN (selectedUser resta impostato): prima andava sempre
+                // in errore silenzioso e tornava alla lista, rendendo
+                // impossibile accedere a un utente con PIN impostato.
                 setSelectedUser(u);
                 setLoading(true);
                 setError('');
@@ -580,10 +586,15 @@ function LoginScreen({ onLoginSuccess }) {
                       showToast(`Bentornato, ${res.user_name}!`);
                       onLoginSuccess(res.session_token);
                     } else {
-                      setError('Accesso non riuscito'); setSelectedUser(null);
+                      setError('Inserisci il tuo PIN');
                     }
                   })
-                  .catch(() => { setLoading(false); setError('Connessione fallita'); setSelectedUser(null); });
+                  .catch(err => {
+                    setLoading(false);
+                    const needsPin = /HTTP 401/.test(err && err.message || '');
+                    setError(needsPin ? 'Inserisci il tuo PIN' : 'Connessione fallita');
+                    if (!needsPin) setSelectedUser(null);
+                  });
               }}
               style={{
                 display: 'flex', alignItems: 'center', gap: 14,
@@ -757,7 +768,15 @@ function App() {
   });
   function setTasks(v)       { setTasksBase(v);   saveState(mkState({ tasks: v })); }
   function setCompleted(v)   { setCompBase(v);    saveState(mkState({ completed: v })); }
-  function setVacation(v)    { setVacBase(v);     saveState(mkState({ vacation: v })); }
+  function setVacation(v)    {
+    setVacBase(v);
+    saveState(mkState({ vacation: v }));
+    // Persisti sul backend: senza questa chiamata il toggle cambiava solo
+    // lo stato locale (localStorage), la modalità vacanza vera (che mette
+    // in pausa le notifiche e riallinea le scadenze al rientro) non veniva
+    // mai attivata sul server.
+    window.HS_API.setVacation(v).catch(function(e) { console.error('HS setVacation fail', e); });
+  }
   function setRooms(v)       { setRoomsBase(v);   saveState(mkState({ rooms: v })); }
   function setMembers(v)     { setMembersBase(v); saveState(mkState({ members: v })); }
   function setScoring(v)     { setScoringBase(v); saveState(mkState({ scoring: v })); }
@@ -833,18 +852,26 @@ function App() {
     let cancelled = false;
     async function loadData() {
       try {
-        const [roomsRes, tasksRes, qaRes, usersRes, lbRes, scoringBaseRes] = await Promise.all([
+        const [roomsRes, tasksRes, qaRes, usersRes, lbRes, scoringBaseRes, settingsRes] = await Promise.all([
           window.HS_API.listRooms().catch(() => []),
           window.HS_API.listTasks().catch(() => []),
           window.HS_API.getQuickActions ? window.HS_API.getQuickActions().catch(() => []) : Promise.resolve([]),
           window.HS_API.listUsers().catch(function(){ return window.HS_CFG ? window.HS_CFG.users : []; }),
           window.HS_API.leaderboard().catch(() => ({ leaderboard: [] })),
           window.HS_API.getScoringBase ? window.HS_API.getScoringBase().catch(() => null) : Promise.resolve(null),
+          window.HS_API.getSettings ? window.HS_API.getSettings().catch(() => []) : Promise.resolve([]),
         ]);
         if (scoringBaseRes && scoringBaseRes.base) {
           setScoringBase(function(prev) { return { ...prev, base: scoringBaseRes.base }; });
         }
         if (cancelled) return;
+        // Modalità vacanza: il backend è l'unica fonte di verità (condivisa
+        // tra i due dispositivi). setVacBase, non setVacation, per non
+        // ri-scrivere subito quello che si è appena letto.
+        if (Array.isArray(settingsRes)) {
+          var vacSetting = settingsRes.find(function(s) { return s.key === 'vacation_mode'; });
+          if (vacSetting) setVacBase(vacSetting.value === 'true');
+        }
         // Mappa stanze backend in formato frontend
         var rooms = roomsRes.map(function(r) {
           var icons = { Utensils: 'Utensils', Bath: 'Bath', Sofa: 'Sofa', BedDouble: 'BedDouble', WashingMachine: 'WashingMachine', Flower2: 'Flower2' };
@@ -952,12 +979,18 @@ function App() {
     return () => { cancelled = true; clearInterval(tid); };
   }, []);
   // ── History dal backend ──
+  // Dipende anche da 'members' (non solo sessionToken): la lookup nome->id
+  // usa la lista utenti reale, che arriva da un fetch asincrono separato
+  // (loadData). Se questo effetto girasse prima che 'members' sia popolato,
+  // la lookup fallirebbe silenziosamente e attribuirebbe il completamento
+  // sempre all'id 1 di default — bug di race condition, corretto qui
+  // ri-eseguendo il mapping quando la lista utenti si aggiorna davvero.
   React.useEffect(function() {
-    if (!sessionToken) return;
+    if (!sessionToken || !members || members.length === 0) return;
     window.HS_API.history(90).then(function(data) {
       if (!Array.isArray(data)) return;
       var mapped = data.map(function(c) {
-        var u = (window.MOCK && window.MOCK.users) ? window.MOCK.users.find(function(x) { return x.name === c.user_name; }) : null;
+        var u = members.find(function(x) { return x.name === c.user_name; });
         return {
           id: 'c' + c.id,
           _completionId: c.id,
@@ -971,7 +1004,7 @@ function App() {
       });
       setCompBase(mapped);
     }).catch(function() {});
-  }, [sessionToken]);
+  }, [sessionToken, members]);
 
   // ── Haptic feedback helper ──
   const vibrate = (pattern = [20]) => {

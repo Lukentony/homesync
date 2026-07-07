@@ -48,10 +48,16 @@ def upgrade():
         {"room_id": 3, "name": "Pulire lampadari", "frequency_days": 180, "grace_period_days": 7, "assignment_type": "ALTERNATING", "next_due_date": today, "difficulty": 4, "is_active": True, "is_quick_action": False},
 
         # seed quick actions (room_id=1 Cucina)
-        {"room_id": 1, "name": "Fare lavatrice", "frequency_days": 9999, "grace_period_days": 0, "assignment_type": "ANY", "next_due_date": date(9999, 12, 31), "difficulty": 2, "is_active": True, "is_quick_action": True},
-        {"room_id": 1, "name": "Stendere", "frequency_days": 9999, "grace_period_days": 0, "assignment_type": "ANY", "next_due_date": date(9999, 12, 31), "difficulty": 2, "is_active": True, "is_quick_action": True},
-        {"room_id": 1, "name": "Svuotare lavastoviglie", "frequency_days": 9999, "grace_period_days": 0, "assignment_type": "ANY", "next_due_date": date(9999, 12, 31), "difficulty": 2, "is_active": True, "is_quick_action": True},
-        {"room_id": 1, "name": "Pulire cucina (piano+lavandino+cottura)", "frequency_days": 9999, "grace_period_days": 0, "assignment_type": "ANY", "next_due_date": date(9999, 12, 31), "difficulty": 3, "is_active": True, "is_quick_action": True},
+        # assignment_type=TOGETHER: come per create_task/update_task, i task
+        # rapidi sono sempre condivisibili (picker "Chi l'ha fatto?" con
+        # opzione "Insieme" che splitta i punti). Con "ANY" (bug storico di
+        # questa migrazione) is_shared risultava sempre False in complete_task,
+        # quindi scegliere "Insieme" assegnava tutti i punti a chi aveva
+        # effettuato il login, invece di splittarli.
+        {"room_id": 1, "name": "Fare lavatrice", "frequency_days": 9999, "grace_period_days": 0, "assignment_type": "TOGETHER", "next_due_date": date(9999, 12, 31), "difficulty": 2, "is_active": True, "is_quick_action": True},
+        {"room_id": 1, "name": "Stendere", "frequency_days": 9999, "grace_period_days": 0, "assignment_type": "TOGETHER", "next_due_date": date(9999, 12, 31), "difficulty": 2, "is_active": True, "is_quick_action": True},
+        {"room_id": 1, "name": "Svuotare lavastoviglie", "frequency_days": 9999, "grace_period_days": 0, "assignment_type": "TOGETHER", "next_due_date": date(9999, 12, 31), "difficulty": 2, "is_active": True, "is_quick_action": True},
+        {"room_id": 1, "name": "Pulire cucina (piano+lavandino+cottura)", "frequency_days": 9999, "grace_period_days": 0, "assignment_type": "TOGETHER", "next_due_date": date(9999, 12, 31), "difficulty": 3, "is_active": True, "is_quick_action": True},
     ]))
 
 def downgrade():

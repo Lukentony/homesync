@@ -149,7 +149,12 @@ def upgrade():
             'room_id': CUCINA,
             'frequency_days': 9999,
             'grace_period_days': 0,
-            'assignment_type': 'ANY',
+            # TOGETHER, non ANY: come create_task/update_task per is_quick_action,
+            # serve perche' complete_task decide is_shared SOLO se
+            # assignment_type=="TOGETHER" — con "ANY" scegliere "Insieme" nel
+            # picker "Chi l'ha fatto?" assegnava tutti i punti a chi era loggato
+            # invece di splittarli (bug: assignment_type sbagliato fin dal seed).
+            'assignment_type': 'TOGETHER',
             'next_due_date': date(9999, 12, 31),
             'difficulty': 2,
             'is_active': True,
