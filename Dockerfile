@@ -27,6 +27,7 @@ RUN rm -rf /usr/share/nginx/html/*
 COPY app/index.html      /usr/share/nginx/html/index.html
 COPY app/lib/            /usr/share/nginx/html/lib/
 COPY app/lib-bridge/     /usr/share/nginx/html/lib-bridge/
+COPY app/vendor/         /usr/share/nginx/html/vendor/
 COPY app/favicon.png     /usr/share/nginx/html/favicon.png
 COPY app/favicon.ico     /usr/share/nginx/html/favicon.ico
 COPY app/manifest.json   /usr/share/nginx/html/manifest.json

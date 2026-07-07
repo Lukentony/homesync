@@ -72,13 +72,15 @@ async def login_user(request: Request, payload: UserLogin, db: AsyncSession = De
             raise HTTPException(status_code=401, detail="PIN non valido")
     # If no PIN is configured, login is allowed directly (household app, optional PIN by design)
 
-    token = secrets.token_hex(32)
-    user.session_token = token
-    await db.commit()
+    # Token stabile per utente: ruotarlo a ogni login sconnetteva gli altri
+    # dispositivi dello stesso utente (401 -> re-login -> 401 sull'altro, a catena).
+    if not user.session_token:
+        user.session_token = secrets.token_hex(32)
+        await db.commit()
 
     return {
         "status": "success",
-        "session_token": token,
+        "session_token": user.session_token,
         "user_id": user.id,
         "user_name": user.name
     }

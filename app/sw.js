@@ -3,7 +3,7 @@
 // NB: bumpare CACHE_NAME a OGNI deploy che cambia gli asset, altrimenti l'app
 // installata continua a servire i vecchi file dalla cache (stale-while-revalidate).
 
-const CACHE_NAME = 'homesync-v1-v11';
+const CACHE_NAME = 'homesync-v1-v16';
 const API_CACHE  = 'homesync-api-v1';
 
 // Assets da precachare al primo install
@@ -27,14 +27,11 @@ const PRECACHE_ASSETS = [
   '/lib/desktop.jsx',
   '/lib-bridge/api-client.js',
   '/lib-bridge/user-picker.js',
+  '/vendor/react.min.js',
+  '/vendor/react-dom.min.js',
+  '/vendor/babel.min.js',
   // Google Fonts (served from network, but we try to cache)
-  'vendor/react.min.js',
-  'vendor/react-dom.min.js',
-  'vendor/babel.min.js'
 ];
-
-// CDN assets: cache opportunistica (non blocca installazione)
-
 
 // ─── Install ─────────────────────────────────────────────────────────────────
 self.addEventListener('install', event => {
@@ -75,7 +72,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Vendor React/Babel: cached locally via PRECACHE_ASSETS. Google Fonts: non intercettare.
+  // Risorse cross-origin (Google Fonts): NON intercettare.
   // Il SW fetcherebbe via connect-src, che la CSP limita a 'self' -> verrebbero
   // bloccate (503) e l'app installata non monterebbe. Lasciandole al browser,
   // passano da script-src/style-src (che le consentono) e funzionano.
@@ -83,14 +80,11 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // HTML pages → Network first, fallback to cache
-  if (url.pathname === '/' || url.pathname === '/index.html' || !url.pathname.startsWith('/lib')) {
-    event.respondWith(networkFirstWithCache(event.request, CACHE_NAME, 4000));
-    return;
-  }
-
-  // JSX/static assets → Cache first, then network (stale-while-revalidate)
-  event.respondWith(staleWhileRevalidate(event.request, CACHE_NAME));
+  // TUTTO same-origin → Network first, fallback cache (offline).
+  // Prima i .jsx erano stale-while-revalidate: dopo un deploy il telefono
+  // eseguiva index.html nuovo con lib vecchie dalla cache -> app rotta/mista.
+  // I file sono piccoli e nginx li marca no-store: network-first è corretto.
+  event.respondWith(networkFirstWithCache(event.request, CACHE_NAME, 4000));
 });
 
 // ─── Strategies ──────────────────────────────────────────────────────────────

@@ -9,4 +9,3 @@ __pycache__/
 *.log
 .venv/
 venv/
-vendor/

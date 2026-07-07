@@ -5,12 +5,24 @@ const [draft, setDraft] = React.useState(task || null);
 const [selectedRoomIds, setSelectedRoomIds] = React.useState([]);
 const [selectedDays, setSelectedDays] = React.useState([]);
 const [repeatTab, setRepeatTab] = React.useState('none');
+// Scelta "solo questa occorrenza / questa e le successive" (PIANO_HOMESYNC_EDIT_SCOPE
+// Fase 2): mostrata solo se il task ha gia' almeno un completamento — altrimenti
+// non esiste ancora una "serie" da cui distinguere un'eccezione, va sempre scope=all.
+const [pendingScope, setPendingScope] = React.useState(null); // null | 'save' | 'delete'
+// Testo grezzo del campo "Ripeti ogni X giorni", separato dal valore
+// committed (draft.everyDays): un input controllato che rispecchia
+// direttamente il valore numerico si azzera a 1 ogni volta che il campo
+// e' momentaneamente vuoto durante la digitazione (es. selezioni tutto e
+// ricomponi il numero) — qui si tiene il testo libero e si valida solo su
+// commit/blur.
+const [everyDaysText, setEveryDaysText] = React.useState('1');
 
 const allRooms = rooms || MOCK.rooms;
 
 React.useEffect(() => {
   if (task) {
     setDraft(task);
+    setPendingScope(null);
     var initialRoomIds = task.roomIds ? [...task.roomIds] : (task.roomId ? [task.roomId] : [1]);
     var initialDays = [];
     if (task.tags) {
@@ -48,6 +60,10 @@ React.useEffect(() => {
     }
   }
 }, [task]);
+
+React.useEffect(() => {
+  setEveryDaysText(String((draft && draft.everyDays > 0) ? draft.everyDays : 1));
+}, [draft && draft.everyDays]);
 
 if (!open || !draft) return null;
 
@@ -110,12 +126,21 @@ const handleToggleRoom = (rId) => {
 };
 
 const handleTabChange = (tab) => {
+  // Il tab "weekly" usa everyDays=7 come marcatore interno (giorni fissi via
+  // tag day:), non un vero "ogni 7 giorni": tornando a "days" da "weekly"
+  // va scartato, altrimenti un task impostato legittimamente su "ogni 7
+  // giorni" non potrebbe mai mostrare/mantenere il valore 7 (bug corretto
+  // il 2026-07-06 — il campo sembrava "rifiutare" il numero 7).
+  var wasWeekly = repeatTab === 'weekly';
   setRepeatTab(tab);
   var nextDays = tab === 'weekly' ? (selectedDays.length > 0 ? selectedDays : [1]) : [];
   if (tab === 'weekly') {
     setSelectedDays(nextDays);
   }
-  syncDraft(selectedRoomIds, nextDays, tab, tab === 'days' ? (draft.everyDays > 0 && draft.everyDays !== 7 ? draft.everyDays : 1) : 0);
+  var daysValueForSync = tab === 'days'
+    ? (wasWeekly ? 1 : (draft.everyDays > 0 ? draft.everyDays : 1))
+    : 0;
+  syncDraft(selectedRoomIds, nextDays, tab, daysValueForSync);
 };
 
 const handleToggleDay = (dayNum) => {
@@ -181,6 +206,15 @@ fontFamily: HS.fontDisplay, fontSize: 28, fontWeight: 500, color: HS.ink, letter
 padding: '4px 0', marginBottom: 10,
 }}
 />
+
+{draft.has_occurrence_override && (
+<div style={{
+  fontFamily: HS.fontUI, fontSize: 11, fontWeight: 700, color: HS.soonInk,
+  background: HS.soonSoft, borderRadius: 8, padding: '4px 10px', display: 'inline-block', marginBottom: 10,
+}}>
+  Modificato solo per questa occorrenza
+</div>
+)}
 
 {isCompleted ? (
 <button
@@ -283,10 +317,21 @@ boxShadow: HS.shadow.card, fontFamily: HS.fontUI, fontSize: 14, color: HS.ink, o
     <span style={{ fontFamily: HS.fontUI, fontSize: 13, color: HS.ink2 }}>Ripeti ogni:</span>
     <input
       type='number' min='1' max='365'
-      value={draft.everyDays > 0 && draft.everyDays !== 7 ? draft.everyDays : 1}
+      value={everyDaysText}
       onChange={(e) => {
-        var v = parseInt(e.target.value) || 1;
-        handleEveryDaysChange(v);
+        var raw = e.target.value;
+        setEveryDaysText(raw);
+        var v = parseInt(raw, 10);
+        if (!isNaN(v) && v > 0) {
+          handleEveryDaysChange(v);
+        }
+      }}
+      onBlur={() => {
+        var v = parseInt(everyDaysText, 10);
+        if (isNaN(v) || v <= 0) {
+          setEveryDaysText('1');
+          handleEveryDaysChange(1);
+        }
       }}
       style={{
         width: 60, padding: '8px', border: 'none', borderRadius: 12,
@@ -421,13 +466,58 @@ borderBottom: i < realHistory.length - 1 ? `1px solid ${HS.hairline}` : 'none',
 })}
 </div>
 
+{pendingScope ? (
+<div style={{ marginTop: 18, background: HS.card, borderRadius: HS.r.md, padding: 14, boxShadow: HS.shadow.card }}>
+<div style={{ fontFamily: HS.fontUI, fontSize: 13, fontWeight: 700, color: HS.ink, marginBottom: 10 }}>
+  Questo task è già stato completato in passato. {pendingScope === 'save' ? 'La modifica vale per:' : 'Vuoi eliminare:'}
+</div>
+<div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+<button onClick={() => {
+  if (pendingScope === 'save') { onSave && onSave(draft, 'this'); onClose(); }
+  else { onDelete && onDelete(draft, 'this'); }
+  setPendingScope(null);
+}} style={{
+  border: 'none', cursor: 'pointer', padding: '12px', borderRadius: HS.r.md,
+  background: HS.bgSunken, color: HS.ink, fontFamily: HS.fontUI, fontSize: 13.5, fontWeight: 700, textAlign: 'left',
+}}>
+  Solo questa volta
+  <div style={{ fontSize: 11, fontWeight: 500, color: HS.ink3, marginTop: 2 }}>
+    {pendingScope === 'save' ? 'Le occorrenze successive restano invariate.' : 'Il task riprende dalla prossima scadenza, senza contare punti.'}
+  </div>
+</button>
+<button onClick={() => {
+  if (pendingScope === 'save') { onSave && onSave(draft, 'all'); onClose(); }
+  else { onDelete && onDelete(draft, 'all'); }
+  setPendingScope(null);
+}} style={{
+  border: 'none', cursor: 'pointer', padding: '12px', borderRadius: HS.r.md,
+  background: HS.urgentSoft, color: HS.urgentInk, fontFamily: HS.fontUI, fontSize: 13.5, fontWeight: 700, textAlign: 'left',
+}}>
+  Questa e tutte le successive
+  <div style={{ fontSize: 11, fontWeight: 500, color: HS.urgentInk, opacity: 0.8, marginTop: 2 }}>
+    {pendingScope === 'save' ? 'Cambia il task per sempre.' : 'Elimina l\'intera serie ricorrente.'}
+  </div>
+</button>
+<button onClick={() => setPendingScope(null)} style={{
+  border: 'none', cursor: 'pointer', padding: '10px', borderRadius: HS.r.md,
+  background: 'transparent', color: HS.ink3, fontFamily: HS.fontUI, fontSize: 13, fontWeight: 600,
+}}>Annulla</button>
+</div>
+</div>
+) : (
 <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
-<button onClick={() => { onSave && onSave(draft); onClose(); }} style={{
+<button onClick={() => {
+  if (draft.has_history) setPendingScope('save');
+  else { onSave && onSave(draft, 'all'); onClose(); }
+}} style={{
 flex: 1, border: 'none', cursor: 'pointer', padding: '14px',
 borderRadius: HS.r.md, background: HS.ink, color: '#fff',
 fontFamily: HS.fontUI, fontSize: 14, fontWeight: 700,
 }}>Salva modifiche</button>
-<button onClick={() => onDelete && onDelete(draft)} style={{
+<button onClick={() => {
+  if (draft.has_history) setPendingScope('delete');
+  else onDelete && onDelete(draft, 'all');
+}} style={{
 border: 'none', cursor: 'pointer', padding: '14px 16px',
 borderRadius: HS.r.md, background: HS.urgentSoft, color: HS.urgentInk,
 fontFamily: HS.fontUI, fontSize: 14, fontWeight: 700,
@@ -436,6 +526,7 @@ display: 'flex', alignItems: 'center', gap: 6,
 <Icon name="trash" size={16} color={HS.urgentInk} strokeWidth={2.2} />
 </button>
 </div>
+)}
 </div>
 </div>
 );

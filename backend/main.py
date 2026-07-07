@@ -1,6 +1,7 @@
 import os
 import subprocess
 import asyncio
+import logging
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -39,13 +40,15 @@ async def lifespan(app: FastAPI):
         pass
     await engine.dispose()
 
+logging.basicConfig(level=logging.INFO)
+
 app = FastAPI(title=os.getenv("APP_NAME", "HomeSync"), lifespan=lifespan, redirect_slashes=False)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 origins = [
-    os.getenv("PUBLIC_BASE_URL", "https://homesync.tuodominio.com").strip(),
-    os.getenv("INTERNAL_BASE_URL", "http://localhost:8000").strip()
+    os.getenv("PUBLIC_BASE_URL", ""),
+    os.getenv("INTERNAL_BASE_URL", "")
 ]
 
 app.add_middleware(

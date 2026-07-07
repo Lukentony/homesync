@@ -26,9 +26,10 @@ riscrivere le query.
 
 ## Auth
 
-PIN numerico 4-6 cifre → SHA-256 → session token in localStorage.
-Niente OAuth, niente password complesse: PIN sufficiente per uso
-domestico.
+PIN numerico opzionale (4-6 cifre) → scrypt → session token in
+localStorage. Se non impostato, il login richiede solo la scelta
+dell'utente. Niente OAuth, niente password complesse: PIN sufficiente
+per uso domestico.
 
 ## VAPID / Push
 

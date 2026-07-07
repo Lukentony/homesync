@@ -16,8 +16,7 @@ cp .env.example .env
 
 Edit `.env` and set at minimum:
 - `SECRET_KEY`: a random hex string (`openssl rand -hex 32`)
-- `USER_A_TOKEN`: SHA-256 hash of the PIN for user A
-- `USER_B_TOKEN`: SHA-256 hash of the PIN for user B
+- `USER_A_NAME` / `USER_B_NAME`: display names for the two household members
 
 Then start the services:
 
@@ -34,13 +33,8 @@ curl http://localhost:8000/health
 # should return: ok
 ```
 
-Open `http://localhost:3100` in a browser. You will be prompted to enter your PIN.
+Open `http://localhost:3100` in a browser. Pick your user from the list to log in — no PIN is required by default. A PIN can be set later per-user from Settings.
 
 ## First Run
 
 On first start, the app creates 8 default rooms and a set of canonical tasks.
-Both users must be invited via the setup links printed in the logs:
-
-```bash
-docker compose logs homesync-api | grep setup
-```

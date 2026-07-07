@@ -205,7 +205,8 @@ function DesktopDashboard({ tasks, completed, onComplete, onOpenTask, onAdd, vac
               .map(h => {
               const isBoth = h.completedBy === 'both';
               const u = isBoth ? null : MOCK.users.find(x => x.id === h.completedBy);
-              const pts = h.awardedPoints || h.points;
+              const pts = h.awardedPoints ?? h.points ?? 0;
+              const neg = pts < 0;
               const rel = (() => {
                 const ts = h.completedAt || 0;
                 const diff = Date.now() - ts;
@@ -229,9 +230,9 @@ function DesktopDashboard({ tasks, completed, onComplete, onOpenTask, onAdd, vac
                   </div>
                   <span style={{
                     padding: '3px 8px', borderRadius: 999,
-                    background: HS.primarySoft, color: HS.primaryInk,
+                    background: neg ? HS.urgentSoft : HS.primarySoft, color: neg ? HS.urgentInk : HS.primaryInk,
                     fontSize: 11, fontWeight: 700,
-                  }}>+{pts}</span>
+                  }}>{(window.fmtPoints ? window.fmtPoints(pts) : (pts>=0?'+':'')+pts)}</span>
                 </div>
               );
             })}

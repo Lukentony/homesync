@@ -58,9 +58,9 @@ TASKS = [
     ('Cambiare lenzuola',           21,  CAMERA,      [CAMERETTA],                            'ANY', 3),
     ('Cambiare asciugamani',        14,  BAGNO,       [BAGNETTO],                             'ANY', 1),
     ('Accappatoi',                  60,  BAGNO,       [],                                     'FIXED_A', 1),
-    # Ambrogio (robot aspirapolvere)
-    ('Robot aspirapolvere — bagni',            2,   BAGNO,       [BAGNETTO],                             'ANY', 1),
-    ('Robot aspirapolvere — casa',             7,   SOGGIORNO,   [CUCINA,CAMERA,CAMERETTA],              'ANY', 2),
+    # Robot aspirapolvere
+    ('Robot aspirapolvere — bagni', 2,   BAGNO,       [BAGNETTO],                             'ANY', 1),
+    ('Robot aspirapolvere — casa',  7,   SOGGIORNO,   [CUCINA,CAMERA,CAMERETTA],              'ANY', 2),
     # Pavimenti e tappeti
     ('Aspirapolvere',               7,   SOGGIORNO,   [CUCINA,CAMERA,CAMERETTA],              'ANY', 2),
     ('Tappeti — aspira',            7,   SOGGIORNO,   [CAMERA,CAMERETTA],                    'ANY', 2),

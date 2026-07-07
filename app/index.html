@@ -197,7 +197,7 @@
 
   <div id="root" role="main"></div>
 
-  <!-- ── Core libs (production builds) ────────────────────────────────────── -->
+  <!-- ── Core libs (self-hosted, vedi app/vendor/) ─────────────────────────── -->
   <script src="/vendor/react.min.js"></script>
   <script src="/vendor/react-dom.min.js"></script>
   <script src="/vendor/babel.min.js"></script>
@@ -218,8 +218,8 @@
       window.MOCK.users = window.HS_CFG.users.map(function(u) { return { id: u.id, name: u.name, emoji: u.emoji, color: u.color, weekly: 0, total: 0, streak: 0 }; });
     } else {
       window.MOCK.users = [
-        { id: 1, name: 'Lu', emoji: '🦦', color: '#E2743A', weekly: 0, total: 0, streak: 0 },
-        { id: 2, name: 'Luca', emoji: '🐢', color: '#6F9E7A', weekly: 0, total: 0, streak: 0 }
+        { id: 1, name: 'Utente A', emoji: '🦦', color: '#E2743A', weekly: 0, total: 0, streak: 0 },
+        { id: 2, name: 'Utente B', emoji: '🐢', color: '#6F9E7A', weekly: 0, total: 0, streak: 0 }
       ];
     }
   }
@@ -320,101 +320,58 @@ function showLocalNotification(title, options) {
 }
 window.showLocalNotification = showLocalNotification;
 
+// I promemoria mattina/sera sono gestiti SOLO dal push server-side
+// (logic/scheduler.py, orari per utente in Impostazioni → Notifiche),
+// che funziona anche ad app chiusa. Qui restava un secondo sistema
+// client-side duplicato che girava solo ad app aperta, con orari propri
+// non configurabili da UI e un bug di conteggio (contava tutti i task
+// attivi della casa invece di quelli in scadenza oggi) — rimosso il
+// 2026-07-06. Resta solo la notifica "task in scadenza", che non duplica
+// nulla lato server e fornisce un feedback immediato mentre l'app è aperta.
 function checkAndSendNotifications(taskList, notifyPrefs) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   if (!notifyPrefs) return;
+  if (!notifyPrefs.dueSoon) return;
 
   const todayStr = new Date().toISOString().slice(0, 10);
-  
-  // 1. NOTIFICA TASK IN SCADENZA (dueSoon)
-  if (notifyPrefs.dueSoon) {
-    const dueTasks = taskList.filter(t => {
-      if (t.completed) return false;
-      if (t.next_due_date) {
-        return t.next_due_date <= todayStr;
-      }
-      return t.urgency === 'overdue' || t.due === 'oggi' || t.due === 'ieri';
-    });
 
-    if (dueTasks.length > 0) {
-      const lastNotifiedDue = localStorage.getItem('hs-last-notified-due-date');
-      const dueTasksIds = dueTasks.map(t => t.id).sort().join(',');
-      const lastNotifiedDueIds = localStorage.getItem('hs-last-notified-due-ids');
-
-      if (lastNotifiedDue !== todayStr || lastNotifiedDueIds !== dueTasksIds) {
-        localStorage.setItem('hs-last-notified-due-date', todayStr);
-        localStorage.setItem('hs-last-notified-due-ids', dueTasksIds);
-        
-        const names = dueTasks.slice(0, 3).map(t => t.name).join(', ');
-        const count = dueTasks.length;
-        const bodyText = count > 3 
-          ? `${names} e altri ${count - 3} task sono in scadenza!`
-          : `${names} da completare!`;
-
-        showLocalNotification('HomeSync — Task in scadenza', {
-          body: bodyText,
-          icon: '/favicon.png',
-          tag: 'homesync-due',
-        });
-      }
+  const dueTasks = taskList.filter(t => {
+    if (t.completed) return false;
+    if (t.next_due_date) {
+      return t.next_due_date <= todayStr;
     }
-  }
+    return t.urgency === 'overdue' || t.due === 'oggi' || t.due === 'ieri';
+  });
 
-  const now = new Date();
-  const currentHHMM = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+  if (dueTasks.length > 0) {
+    const lastNotifiedDue = localStorage.getItem('hs-last-notified-due-date');
+    const dueTasksIds = dueTasks.map(t => t.id).sort().join(',');
+    const lastNotifiedDueIds = localStorage.getItem('hs-last-notified-due-ids');
 
-  // 2. PROMEMORIA MATTINA (morningEnabled)
-  if (notifyPrefs.morningEnabled) {
-    const morningTime = notifyPrefs.reminder_time_morning || '08:00';
-    if (currentHHMM >= morningTime) {
-      const lastNotifiedMorning = localStorage.getItem('hs-last-notified-morning-date');
-      if (lastNotifiedMorning !== todayStr) {
-        localStorage.setItem('hs-last-notified-morning-date', todayStr);
-        
-        const pendingCount = taskList.filter(t => !t.completed).length;
-        const bodyText = pendingCount > 0 
-          ? `Buongiorno! Hai ${pendingCount} task da completare oggi.`
-          : 'Buongiorno! Nessun task in programma per oggi. Goditi la giornata!';
+    if (lastNotifiedDue !== todayStr || lastNotifiedDueIds !== dueTasksIds) {
+      localStorage.setItem('hs-last-notified-due-date', todayStr);
+      localStorage.setItem('hs-last-notified-due-ids', dueTasksIds);
 
-        showLocalNotification('HomeSync — Promemoria Mattutino', {
-          body: bodyText,
-          icon: '/favicon.png',
-          tag: 'homesync-morning',
-        });
-      }
-    }
-  }
+      const names = dueTasks.slice(0, 3).map(t => t.name).join(', ');
+      const count = dueTasks.length;
+      const bodyText = count > 3
+        ? `${names} e altri ${count - 3} task sono in scadenza!`
+        : `${names} da completare!`;
 
-  // 3. PROMEMORIA SERA (eveningEnabled)
-  if (notifyPrefs.eveningEnabled) {
-    const eveningTime = notifyPrefs.reminder_time_evening || '20:00';
-    if (currentHHMM >= eveningTime) {
-      const lastNotifiedEvening = localStorage.getItem('hs-last-notified-evening-date');
-      if (lastNotifiedEvening !== todayStr) {
-        localStorage.setItem('hs-last-notified-evening-date', todayStr);
-        
-        const pendingCount = taskList.filter(t => !t.completed).length;
-        const bodyText = pendingCount > 0 
-          ? `Buonasera! Rimangono ancora ${pendingCount} task da completare.`
-          : 'Buonasera! Tutti i task di oggi sono stati completati, ottimo lavoro!';
-
-        showLocalNotification('HomeSync — Promemoria Serale', {
-          body: bodyText,
-          icon: '/favicon.png',
-          tag: 'homesync-evening',
-        });
-      }
+      showLocalNotification('HomeSync — Task in scadenza', {
+        body: bodyText,
+        icon: '/favicon.png',
+        tag: 'homesync-due',
+      });
     }
   }
 }
 
+// Fallback offline (il backend è l'unica fonte di verità quando risponde):
+// task.points è già la preview corretta calcolata in loadData, che incorpora
+// la regola di ritardo (1g -> base 1, >1g -> stesso importo ma negativo).
 function calcPoints(task, scoring) {
-  let pts = task.points || (task.difficulty || 3) * 10;
-  if (task.urgency === 'overdue') pts += (scoring.overdueBonus || 0);
-  const uid = task.assignee; const user = (uid === "both" || uid === undefined) ? undefined : MOCK.users.find(u => u.id === uid);
-  const streak = user?.streak || 0;
-  if (streak > 0 && streak % 7 === 0) pts += (scoring.streakBonus || 0);
-  return pts;
+  return task.points ?? (task.difficulty || 3) * (scoring?.base || 10);
 }
 
 // TaskCard — dispatches to variant
@@ -539,8 +496,8 @@ function LoginScreen({ onLoginSuccess }) {
         .catch(err => {
           console.warn("Failed to load users for picker, using fallback", err);
           setUsers([
-            { id: 1, name: 'Lu', emoji: '🦦', color: '#E2743A' },
-            { id: 2, name: 'Luca', emoji: '🐢', color: '#6F9E7A' }
+            { id: 1, name: 'Utente A', emoji: '🦦', color: '#E2743A' },
+            { id: 2, name: 'Utente B', emoji: '🐢', color: '#6F9E7A' }
           ]);
         });
     }
@@ -734,14 +691,16 @@ function App() {
   const [rooms, setRoomsBase]       = React.useState(saved?.rooms     || MOCK.rooms || []);
   const [members, setMembersBase]   = React.useState(saved?.members   || MOCK.users || []);
   const [scoring, setScoringBase]   = React.useState(saved?.scoring   || { base: 3, overdueBonus: 1, streakBonus: 5, splitShared: true, weeklyReset: true });
-  const [notifyPrefs, setNotifBase] = React.useState(saved?.notifyPrefs || { morningEnabled: true, reminder_time_morning: '08:00', eveningEnabled: true, reminder_time_evening: '20:00', dueSoon: true, partnerDone: false });
+  const [notifyPrefs, setNotifBase] = React.useState(saved?.notifyPrefs || { dueSoon: true, partnerDone: false });
   const [prefs, setPrefsBase]       = React.useState(saved?.prefs     || { show_urgency_colors: 'true', early_completion_days: '2', grace_period_days: '1' });
   const loadDataRef = React.useRef(null);
 
   // ── UI state ──
   const [activeTab, setActiveTab]     = React.useState('today');
-  const [homeMode, setHomeModeBase]       = React.useState(saved?.homeMode || 'dial');
-  const [cardVariant, setCardVariantBase] = React.useState(saved?.cardVariant || 'tap');
+  // Layout e completamento fissi in produzione: quadrante + tocco.
+  // (I selettori in Impostazioni sono stati rimossi; ignoriamo i valori salvati.)
+  const homeMode = 'dial';
+  const cardVariant = 'tap';
   const [drawer, setDrawer]           = React.useState(false);
   const [quickAdd, setQuickAdd]       = React.useState(false);
   const [taskDetail, setTaskDetail]   = React.useState(null);
@@ -803,8 +762,6 @@ function App() {
   function setMembers(v)     { setMembersBase(v); saveState(mkState({ members: v })); }
   function setScoring(v)     { setScoringBase(v); saveState(mkState({ scoring: v })); }
   function setPrefs(v)       { setPrefsBase(v);   saveState(mkState({ prefs: v })); }
-  function setHomeMode(v)    { setHomeModeBase(v);    saveState(mkState({ homeMode: v })); }
-  function setCardVariant(v) { setCardVariantBase(v); saveState(mkState({ cardVariant: v })); }
   function setNotifyPrefs(v) {
     const next = typeof v === 'function' ? v(notifyPrefs) : v;
     setNotifBase(next);
@@ -957,7 +914,15 @@ function App() {
             case 'ALTERNATING': assignee = t.last_performer_id === 1 ? 2 : 1; break;
             default: assignee = 1;
           }
-           return { id: 't'+t.id + (t.instance_date ? '_'+t.instance_date : ''), _backendId: t.id, name: t.name, room: roomKey, rooms: roomKeys, roomIds: roomIds, roomId: t.room_id, due: dueLabel, urgency: urgency, assignee: assignee, everyDays: t.frequency_days, next_due_date: dueDate, difficulty: t.difficulty || 3, points: (t.difficulty || 3) * sb, tags: t.tags, is_quick_action: false };
+          // Anteprima punti coerente con la regola del backend (complete_task):
+          // 1g di ritardo -> valore base a 1 (p ridotto). Oltre 1g -> NON ridotto:
+          // stesso valore che si guadagnerebbe puntuale (difficoltà * scoring_base
+          // normale), ma sottratto: -(p * d), non -(1 * d).
+          var previewPoints;
+          if (d === -1) previewPoints = (t.difficulty || 3) * 1;
+          else if (d < -1) previewPoints = -((t.difficulty || 3) * sb);
+          else previewPoints = (t.difficulty || 3) * sb;
+           return { id: 't'+t.id + (t.instance_date ? '_'+t.instance_date : ''), _backendId: t.id, name: t.name, room: roomKey, rooms: roomKeys, roomIds: roomIds, roomId: t.room_id, due: dueLabel, urgency: urgency, assignee: assignee, everyDays: t.frequency_days, next_due_date: dueDate, difficulty: t.difficulty || 3, points: previewPoints, tags: t.tags, is_quick_action: false, has_history: !!t.has_history, has_occurrence_override: !!t.has_occurrence_override, skipped_occurrences: t.skipped_occurrences || [] };
         });
         // Aggiungi quick actions all'array tasks con flag is_quick_action: true
         var qaTasks = (qaRes || []).map(function(t) {
@@ -998,7 +963,7 @@ function App() {
           _completionId: c.id,
           _backendId: c.task_id,
           name: c.task_name,
-          completedBy: u ? u.id : 1,
+          completedBy: c.was_shared ? 'both' : (u ? u.id : 1),
           completedAt: new Date(c.completed_at).getTime(),
           awardedPoints: c.points_awarded,
           points: c.points_awarded,
@@ -1021,6 +986,7 @@ function App() {
 
   async function doComplete(task, completedBy) {
     var bid=task._backendId||parseInt(String(task.id).replace(/^t/,"",10));
+    var backendPts = null;
     if(bid){
       var completePayload = {
         use_theoretical_date: false,
@@ -1032,15 +998,21 @@ function App() {
         // secondo il tipo di ricorrenza del task (giorni fissi o intervallo).
         // Il client NON ricalcola nulla: niente updateTask (corrompeva la
         // difficolta') ne' points_awarded (divergeva dal backend).
-        await window.HS_API.completeTask(bid, completePayload);
+        const res = await window.HS_API.completeTask(bid, completePayload);
+        if (res && typeof res.points === 'number') backendPts = res.points;
         if (loadDataRef.current) loadDataRef.current();
       } catch(e) {
         console.error('HS complete fail', e);
       }
     }
+    // Punti mostrati = quelli decisi dal backend (incl. riduzione per ritardo).
+    // Il calcolo locale resta solo come fallback offline. ceil(|pts|/2) poi
+    // segno: Math.ceil su un valore già negativo arrotonderebbe nella
+    // direzione sbagliata (stesso bug fixato in who-did-it.jsx).
     const pts = calcPoints(task, scoring);
-    const awardedPoints = (completedBy === 'both' && scoring.splitShared)
-      ? Math.ceil(pts / 2) : pts;
+    const sharedFallback = pts < 0 ? -Math.ceil(Math.abs(pts) / 2) : Math.ceil(pts / 2);
+    const awardedPoints = backendPts !== null ? backendPts
+      : (completedBy === 'both' && scoring.splitShared) ? sharedFallback : pts;
     const entry = { ...task, completedBy, completedAt: Date.now(), awardedPoints };
 
     // Update MOCK.users points
@@ -1061,7 +1033,9 @@ function App() {
 
     vibrate([15, 30, 15]);
     const user = completedBy === 'both' ? 'Entrambi' : (MOCK.users.find(u => u.id === completedBy)?.name || '');
-    showToast(`✓ ${task.name} — +${awardedPoints} pt`, 'success');
+    // Ritardo >1g: il backend sottrae punti invece di assegnarli -> toast di warning, non di successo.
+    const ptsLabel = (awardedPoints >= 0 ? '+' : '') + awardedPoints;
+    showToast(`✓ ${task.name} — ${ptsLabel} pt`, awardedPoints < 0 ? 'warning' : 'success');
 
     // Notify partner
     if (notifyPrefs.partnerDone && 'Notification' in window && Notification.permission === 'granted') {
@@ -1071,10 +1045,20 @@ function App() {
 
   async function handleUncomplete(entry) {
     const bid = entry._backendId || parseInt(String(entry.id).replace(/^t/, ''), 10);
-    if (bid) {
-      try { await window.HS_API.undoComplete(bid); }
-      catch(e) { showToast('Errore annullamento', 'error'); return; }
-    }
+    try {
+      if (entry._completionId) {
+        // Cancella esattamente il completamento cliccato, non "l'ultimo
+        // completamento in assoluto per quel task" — bug corretto il
+        // 2026-07-06: da Storico, annullare una voce non recentissima
+        // cancellava un completamento diverso da quello selezionato.
+        await window.HS_API.deleteHistoryItem(entry._completionId);
+      } else if (bid) {
+        // Fallback per l'annullamento immediato dopo il tap (l'entry
+        // ottimistica locale non ha ancora un _completionId reale finche'
+        // non arriva il prossimo refetch di /history).
+        await window.HS_API.undoComplete(bid);
+      }
+    } catch(e) { showToast('Errore annullamento', 'error'); return; }
     setCompleted(completed.filter(c => !(c.id === entry.id && c.completedAt === entry.completedAt)));
     if (!tasks.find(t => t.id === entry.id)) {
       setTasks([{ ...entry, completed: false, urgency: 'ok' }, ...tasks]);
@@ -1185,7 +1169,8 @@ function App() {
         showToast('Errore aggiornamento compito', 'error');
       });
   }
-  function handleSaveTask(draft) {
+  function handleSaveTask(draft, scope) {
+    scope = scope || 'all';
     var bid=draft._backendId||parseInt(String(draft.id).replace(/^t/,"",10));
     if(bid){
       var rid = (function() {
@@ -1213,9 +1198,18 @@ function App() {
         scoring_base: scoring?.base || 10
       };
       if (draft.next_due_date) payload.next_due_date = draft.next_due_date;
-      window.HS_API.updateTask(bid, payload).then(function() {
+      window.HS_API.updateTask(bid, payload, scope).then(function() {
         if (loadDataRef.current) loadDataRef.current();
       }).catch(function(e){ console.error('HS update fail',e); });
+    }
+    if (scope === 'this') {
+      // scope=this non cambia la serie: non applichiamo il draft allo stato
+      // locale persistente (name/room/difficulty restano quelli del task per
+      // le occorrenze future). Il reload sopra applica l'override solo alla
+      // prossima occorrenza, coerente con quanto fatto dal backend.
+      setTaskDetail(null);
+      showToast('Modifica applicata solo a questa occorrenza');
+      return;
     }
     const next = tasks.map(t => (t.id === draft.id || t._backendId === bid) ? { ...t, ...draft } : t);
     setTasks(next);
@@ -1289,8 +1283,18 @@ function App() {
     }
   }
 
-  function handleDeleteTask(task) {
-    var bid=task._backendId||parseInt(String(task.id).replace(/^t/,"",10));if(bid){window.HS_API.deleteTask(bid).catch(function(e){});}
+  function handleDeleteTask(task, scope) {
+    scope = scope || 'all';
+    var bid=task._backendId||parseInt(String(task.id).replace(/^t/,"",10));
+    if(bid){ window.HS_API.deleteTask(bid, scope).catch(function(e){}); }
+    if (scope === 'this') {
+      // La serie resta attiva, solo la prossima occorrenza viene saltata:
+      // ricarica dal backend invece di rimuovere il task dallo stato locale.
+      if (loadDataRef.current) loadDataRef.current();
+      setTaskDetail(null);
+      showToast('Occorrenza saltata', 'warning');
+      return;
+    }
     const next = tasks.filter(t => t.id !== task.id);
     setTasks(next);
     if (window.refreshInstances) window.refreshInstances(next);
@@ -1320,19 +1324,25 @@ function App() {
 
   // ── Screen router ──
   // Note: screen component prop names must match lib/screens.jsx signatures exactly
+  // La home mostra SOLO i completamenti di oggi: lo storico (90gg) resta
+  // in HistoryScreen/ScoreScreen.
+  const completedToday = completed.filter(c => {
+    if (!c.completedAt) return false;
+    return new Date(c.completedAt).toDateString() === new Date().toDateString();
+  });
   function renderScreen() {
     switch (activeTab) {
       case 'today':
         return homeMode === 'channels'
           ? <HomeChannels
-              tasks={tasks} tasksCompleted={completed}
+              tasks={tasks} tasksCompleted={completedToday}
               onComplete={handleComplete} onOpen={setTaskDetail}
               onGoToScore={() => navigate('score')}
               onSnooze={(t) => {}} // future
               cardVariant={cardVariant}
             />
           : <HomeDial
-              tasks={tasks} tasksCompleted={completed}
+              tasks={tasks} tasksCompleted={completedToday}
               onComplete={handleComplete} onOpen={setTaskDetail}
               onGoToScore={() => navigate('score')}
               onSnooze={(t) => {}}
@@ -1360,8 +1370,6 @@ function App() {
           onShowHistory={() => setActiveTab('history')}
           onReset={handleReset}
           tasks={tasks} completed={completed}
-          homeMode={homeMode} setHomeMode={setHomeMode}
-          cardVariant={cardVariant} setCardVariant={setCardVariant}
           onCreateRoom={handleCreateRoom}
           onUpdateRoom={handleUpdateRoom}
           onDeleteRoom={handleDeleteRoom}
@@ -1402,6 +1410,40 @@ function App() {
     );
   }
 
+  // ── Pull-to-refresh ──
+  // Custom: il CSS (overscroll-behavior:none) disabilita quello nativo del
+  // browser, e nella PWA installata non esiste comunque. Trascina giù dal
+  // top della lista -> ricarica i dati dal backend.
+  const ptrScrollRef = React.useRef(null);
+  const ptrTouch = React.useRef({ startY: 0, active: false });
+  const [ptrPull, setPtrPull] = React.useState(0);
+  const [ptrBusy, setPtrBusy] = React.useState(false);
+  function ptrStart(e) {
+    const el = ptrScrollRef.current;
+    if (!el || el.scrollTop > 0 || ptrBusy) return;
+    ptrTouch.current = { startY: e.touches[0].clientY, active: true };
+  }
+  function ptrMove(e) {
+    const s = ptrTouch.current;
+    const el = ptrScrollRef.current;
+    if (!s.active || ptrBusy || !el || el.scrollTop > 0) return;
+    const dy = e.touches[0].clientY - s.startY;
+    setPtrPull(dy > 0 ? Math.min(90, dy * 0.45) : 0);
+  }
+  async function ptrEnd() {
+    const wasActive = ptrTouch.current.active;
+    ptrTouch.current = { startY: 0, active: false };
+    if (!wasActive || ptrBusy) return;
+    if (ptrPull >= 50) {
+      setPtrBusy(true); setPtrPull(50);
+      vibrate([10]);
+      try { if (loadDataRef.current) await loadDataRef.current(); } catch (e) {}
+      setTimeout(() => { setPtrBusy(false); setPtrPull(0); }, 350);
+    } else {
+      setPtrPull(0);
+    }
+  }
+
   // ── Shell ──
   const shell = (
     <div style={{
@@ -1410,7 +1452,27 @@ function App() {
     }}>
       <Header />
 
-      <div style={{ flex: 1, overflowY: 'auto', position: 'relative', WebkitOverflowScrolling: 'touch' }}>
+      {/* Indicatore pull-to-refresh */}
+      <div aria-hidden="true" style={{
+        position: 'absolute', left: '50%', top: 54, zIndex: 35,
+        transform: `translateX(-50%) translateY(${ptrPull - 44}px) rotate(${ptrPull * 4}deg)`,
+        opacity: ptrPull > 8 ? 1 : 0,
+        transition: ptrTouch.current.active ? 'none' : 'transform .25s ease, opacity .25s ease',
+        width: 32, height: 32, borderRadius: '50%', background: '#fff',
+        boxShadow: '0 2px 10px rgba(42,29,20,.18)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <div style={{
+          width: 18, height: 18, borderRadius: '50%',
+          border: `2.5px solid ${HS.hairline}`, borderTopColor: HS.primary,
+          animation: ptrBusy ? 'hs-spin .7s linear infinite' : 'none',
+        }} />
+      </div>
+
+      <div ref={ptrScrollRef}
+        onTouchStart={ptrStart} onTouchMove={ptrMove}
+        onTouchEnd={ptrEnd} onTouchCancel={ptrEnd}
+        style={{ flex: 1, overflowY: 'auto', position: 'relative', WebkitOverflowScrolling: 'touch' }}>
         <ErrorBoundary key={activeTab}>
           {renderScreen()}
         </ErrorBoundary>
@@ -1454,7 +1516,12 @@ function App() {
   );
 
   if (!sessionToken) {
-    return <LoginScreen onLoginSuccess={(token) => setSessionToken(token)} />;
+    return <LoginScreen onLoginSuccess={(token) => {
+      setSessionToken(token);
+      // Ricarica subito i dati: il primo loadData è partito senza sessione
+      // (tutte 401) e il polling da 30s lascerebbe la home vuota nel frattempo.
+      if (loadDataRef.current) loadDataRef.current();
+    }} />;
   }
 
   if (isDesktop) {

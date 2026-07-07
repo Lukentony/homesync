@@ -4,10 +4,20 @@ function WhoDidItSheet({ task, open, onPick, onClose }) {
 if (!open || !task) return null;
 const [a, b] = MOCK.users;
 
+// task.points è la preview calcolata in loadData() e può essere negativa
+// (task in ritardo di più di 1 giorno) -> niente "+" hardcoded, usa fmtPoints.
+const fmt = window.fmtPoints || ((n) => (n >= 0 ? '+' : '') + n);
+// Quota condivisa: il backend fa ceil(|base|/2) e SOLO DOPO applica il segno
+// (calculate_points poi negato in complete_task). Math.ceil(negativo/2) darebbe
+// un risultato diverso (es. -3 -> -1 invece di -2) perché arrotonda verso l'alto
+// anche sui negativi: replichiamo lo stesso ordine di operazioni del backend.
+const sharedPts = task.points < 0
+  ? -Math.ceil(Math.abs(task.points) / 2)
+  : Math.ceil(task.points / 2);
 const choices = [
-{ id: a.id, label: a.name, sub: `+${task.points} pt`, users: [a], color: a.color },
-{ id: b.id, label: b.name, sub: `+${task.points} pt`, users: [b], color: b.color },
-{ id: 'both', label: 'Insieme', sub: `+${Math.ceil(task.points / 2)} pt a testa`, users: [a, b], color: HS.primary },
+{ id: a.id, label: a.name, sub: `${fmt(task.points)} pt`, users: [a], color: a.color },
+{ id: b.id, label: b.name, sub: `${fmt(task.points)} pt`, users: [b], color: b.color },
+{ id: 'both', label: 'Insieme', sub: `${fmt(sharedPts)} pt a testa`, users: [a, b], color: HS.primary },
 ];
 
 return (

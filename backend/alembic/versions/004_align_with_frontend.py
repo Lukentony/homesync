@@ -1,8 +1,8 @@
 """align seed data with frontend prototype (revision 2)
 
 Allinea SOLO le stanze al prototipo (7 stanze) e inserisce i task di
-esempio. Gli utenti restano Utente A / Utente B dalla 003 — il prototipo li riflette,
-e gli utenti possono comunque rinominarsi a runtime via API.
+esempio. I nomi utente restano quelli configurati via .env (001) — gli
+utenti possono comunque rinominarsi a runtime via API.
 
 Idempotente: usa INSERT OR IGNORE / UPDATE mirate per non sovrascrivere
 modifiche fatte a runtime.

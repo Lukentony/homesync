@@ -1,5 +1,13 @@
 // Screens — TodayScreen with 2 layout variants, plus supporting screens
 
+// Punti con ritardo >1g sono negativi (sottratti, non solo "azzerati").
+// Formattazione condivisa: segno esplicito + palette rossa quando negativi.
+function fmtPoints(n) {
+  const v = n || 0;
+  return (v >= 0 ? '+' : '') + v;
+}
+window.fmtPoints = fmtPoints;
+
 function EmptyState() {
   return (
     <div style={{ textAlign: 'center', padding: '30px 20px', color: HS.ink3, fontFamily: HS.fontUI }}>
@@ -225,6 +233,8 @@ const isBoth = by === 'both';
 const found = isBoth ? null : (MOCK.users.find(u => u.id === by) || MOCK.users[0]);
 const users = isBoth ? MOCK.users : [found].filter(Boolean);
 if (!isBoth && users.length === 0) return null;
+const pts = t.awardedPoints ?? t.points ?? 0;
+const neg = pts < 0;
 return (
 <button key={t.id + (t.completedAt || '')}
 onClick={() => onOpen && onOpen(t)}
@@ -245,11 +255,11 @@ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
 </div>
 </div>
 <span style={{
-padding: '3px 8px', borderRadius: 999, background: HS.sageSoft,
-fontFamily: HS.fontUI, fontSize: 11, fontWeight: 700, color: HS.sageInk,
+padding: '3px 8px', borderRadius: 999, background: neg ? HS.urgentSoft : HS.sageSoft,
+fontFamily: HS.fontUI, fontSize: 11, fontWeight: 700, color: neg ? HS.urgentInk : HS.sageInk,
 display: 'inline-flex', alignItems: 'center', gap: 2,
 }}>
-+{t.awardedPoints || t.points} <Icon name="bolt" size={9} color={HS.sageInk} strokeWidth={3} />
+{fmtPoints(pts)} <Icon name="bolt" size={9} color={neg ? HS.urgentInk : HS.sageInk} strokeWidth={3} />
 </span>
 </button>
 );
@@ -394,7 +404,13 @@ const expandedInstances = React.useMemo(function() {
   for (var i = 0; i < allInstances.length; i++) {
     var t = allInstances[i];
     result.push(t);
-    
+
+    // Occorrenze saltate (scope=this su delete, PIANO_HOMESYNC_EDIT_SCOPE Fase 2):
+    // mostrate come istanze barrate invece di sparire senza traccia.
+    (t.skipped_occurrences || []).forEach(function(ds) {
+      result.push({ ...t, id: t.id + '_skip_' + ds, next_due_date: ds, instance_date: ds, __skipped: true });
+    });
+
     var dow = [];
     if (t.tags) {
       try {
@@ -477,11 +493,15 @@ return td === ds;
 });
 };
 
+// Le occorrenze saltate sono storiche, non "in scadenza": escluse dal badge/colore
+// del giorno ma restano nella lista visibile quando il giorno viene aperto.
+const activeTasksForDay = (cell) => tasksForDay(cell).filter(t => !t.__skipped);
+
 const selectedTasks = selectedDay ? tasksForDay(selectedDay) : [];
 
 const dayColor = (cell) => {
 if (!cell) return "";
-const t = tasksForDay(cell);
+const t = activeTasksForDay(cell);
 if (t.length === 0) return "";
 const minDue = Math.min(...t.map(x => {
 const d = x.instance_date || x.next_due_date;
@@ -539,7 +559,7 @@ style={{ border: "none", background: HS.bgSunken, borderRadius: 10, width: 34, h
 if (!cell) return <div key={"e" + i} />;
 const isThisToday = cell.toDateString() === today.toDateString();
 const isSelected = selectedDay && cell.toDateString() === selectedDay.toDateString();
-const hasTasks = tasksForDay(cell).length > 0;
+const hasTasks = activeTasksForDay(cell).length > 0;
 const urgColor = dayColor(cell);
 return (
 <button key={i} onClick={() => setSelectedDay(isSelected ? null : cell)}
@@ -557,7 +577,7 @@ transition: "all .12s ease",
 {hasTasks && (
 <React.Fragment>
 <div style={{ position: "absolute", top: 1, right: 2, fontSize: 8, fontWeight: 700, color: isSelected ? "#fff" : urgColor, lineHeight: 1 }}>
-{tasksForDay(cell).length}
+{activeTasksForDay(cell).length}
 </div>
 <div style={{ position: "absolute", bottom: 2, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 2 }}>
 <div style={{ width: 6, height: 6, borderRadius: 3, background: isSelected ? "#fff" : urgColor }} />
@@ -606,6 +626,23 @@ selectedTasks.map(t => {
 const isBoth = t.assignee === "both";
 const u = isBoth ? null : MOCK.users.find(x => x.id === t.assignee);
 const urg = (window.URGENCY_STYLES || URGENCY_STYLES)[t.urgency] || {};
+if (t.__skipped) {
+  return (
+    <div key={t.id + "-" + (t.instance_date || t.next_due_date)}
+      style={{
+        display: "flex", alignItems: "center", gap: 10,
+        padding: "10px 14px", borderBottom: "1px solid " + HS.hairline,
+        opacity: 0.55,
+      }}
+    >
+      <div style={{ width: 4, height: 32, borderRadius: 2, background: HS.ink3, flexShrink: 0 }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontFamily: HS.fontUI, fontSize: 14, fontWeight: 600, color: HS.ink3, textDecoration: "line-through", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</div>
+        <div style={{ fontFamily: HS.fontUI, fontSize: 11, color: HS.ink3 }}>Saltato</div>
+      </div>
+    </div>
+  );
+}
 return (
 <div key={t.id + "-" + (t.instance_date || t.next_due_date)}
 onClick={() => onOpen && onOpen(t)}
@@ -723,7 +760,8 @@ fontFamily: HS.fontUI, fontSize: 13, color: HS.ink3,
 {recent.map(h => {
 const isBoth = h.completedBy === 'both';
 const u = isBoth ? null : MOCK.users.find(x => x.id === h.completedBy);
-const pts = h.awardedPoints || h.points;
+const pts = h.awardedPoints ?? h.points ?? 0;
+const neg = pts < 0;
 return (
 <div key={h.id + (h.completedAt || '')} style={{
 display: 'flex', alignItems: 'center', gap: 10,
@@ -737,10 +775,10 @@ padding: '10px 14px', boxShadow: HS.shadow.card,
 </div>
 <div style={{
 display: 'inline-flex', alignItems: 'center', gap: 3,
-padding: '4px 8px', borderRadius: 999, background: HS.primarySoft,
-fontFamily: HS.fontUI, fontSize: 12, fontWeight: 700, color: HS.primaryInk,
+padding: '4px 8px', borderRadius: 999, background: neg ? HS.urgentSoft : HS.primarySoft,
+fontFamily: HS.fontUI, fontSize: 12, fontWeight: 700, color: neg ? HS.urgentInk : HS.primaryInk,
 }}>
-+{pts}<Icon name="bolt" size={10} color={HS.primaryInk} strokeWidth={2.6} />
+{fmtPoints(pts)}<Icon name="bolt" size={10} color={neg ? HS.urgentInk : HS.primaryInk} strokeWidth={2.6} />
 </div>
 </div>
 );

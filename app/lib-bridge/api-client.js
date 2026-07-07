@@ -13,7 +13,7 @@ users: [
 { id: 1, name: 'Utente A', emoji: '🦦', color: '#E2743A' },
 { id: 2, name: 'Utente B', emoji: '🐢', color: '#6F9E7A' },
 ],
-features: { vacationMode: true, n8nIntegration: true, weeklyLeaderboard: true },
+features: { vacationMode: true, weeklyLeaderboard: true },
 };
 
 // Caricamento runtime config (sincrono via XHR per essere disponibile
@@ -115,8 +115,8 @@ deleteRoom: (id, force = false) => req('DELETE', `/rooms/${id}${force ? '?force=
 // tasks
 listTasks: () => req('GET', '/tasks/due'),
 createTask: (payload) => req('POST', '/tasks', payload),
-updateTask: (id, payload) => req('PUT', `/tasks/${id}`, payload),
-deleteTask: (id) => req('DELETE', `/tasks/${id}`),
+updateTask: (id, payload, scope = 'all') => req('PUT', `/tasks/${id}?scope=${scope}`, payload),
+deleteTask: (id, scope = 'all') => req('DELETE', `/tasks/${id}?scope=${scope}`),
 completeTask: (id, payload = {}) => req('POST', `/tasks/${id}/complete`, payload),
 undoComplete: (id) => req('DELETE', `/tasks/${id}/complete`),
 getQuickActions: () => req('GET', '/tasks/quick-actions'),
@@ -126,6 +126,7 @@ leaderboard: () => req('GET', '/stats/leaderboard'),
   listAll: () => req('GET', '/tasks'),
   resetTest: () => req('POST', '/tasks/reset-test'),
 history: (days = 30) => req('GET', `/stats/history?days=${days}`),
+deleteHistoryItem: (id) => req('DELETE', `/stats/history/${id}`),
 
 // settings
 getSettings: () => req('GET', '/settings'),

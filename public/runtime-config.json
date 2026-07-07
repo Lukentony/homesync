@@ -7,7 +7,6 @@
   ],
   "features": {
     "vacationMode": true,
-    "n8nIntegration": true,
     "weeklyLeaderboard": true
   },
   "build": "homesync-frontend:1.0.0"

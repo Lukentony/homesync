@@ -14,20 +14,20 @@ It tracks recurring tasks, assigns them, scores completion, and shows who is pul
 git clone <repo-url>
 cd homesync
 cp .env.example .env
-# modifica USER_A_TOKEN e USER_B_TOKEN (SHA-256 dei PIN scelti)
+# modifica almeno SECRET_KEY, USER_A_NAME, USER_B_NAME
 docker compose up -d
 ```
 
-Accedi a `http://localhost:3100`. Il primo avvio esegue automaticamente le migrazioni del database e crea stanze e task di default.
+Accedi a `http://localhost:3100`. Il primo avvio esegue automaticamente le migrazioni del database e crea stanze e task di default. Il login richiede solo di scegliere il proprio utente — il PIN è opzionale e si imposta dopo, da Impostazioni.
 
 ## Project Structure
 
 ```
 homesync/
 ├── backend/           # FastAPI app
-│   ├── routers/       # tasks, users, rooms, stats, settings, n8n
+│   ├── routers/       # tasks, users, rooms, stats, settings
 │   ├── logic/         # scheduling, scoring, assignment, idempotency
-│   ├── alembic/       # migrazioni database (001→011)
+│   ├── alembic/       # migrazioni database (001→012)
 │   └── models.py      # ORM: User, Task, Room, Completion, Setting
 ├── app/               # Frontend (servito da nginx)
 │   ├── index.html     # React app (JSX, nessun build step)
@@ -35,7 +35,7 @@ homesync/
 │   ├── lib-bridge/    # API client
 │   ├── vendor/        # React 18, React-DOM 18, Babel 7.29 (self-hosted)
 │   └── sw.js          # Service Worker (PWA + notifiche push)
-├── scripts/           # docker-entrypoint, setup-runtime-config
+├── scripts/           # docker-entrypoint
 ├── docker-compose.yml
 ├── Dockerfile         # Nginx multi-stage
 └── .env.example
@@ -57,10 +57,8 @@ Tutte le variabili in `.env`:
 | Variable | Description |
 |----------|-------------|
 | `SECRET_KEY` | Random hex string |
-| `USER_A_TOKEN` | PIN hash (SHA-256) per utente A |
-| `USER_B_TOKEN` | PIN hash (SHA-256) per utente B |
-| `N8N_API_KEY` | Chiave per integrazione n8n (opzionale) |
-| `DATABASE_URL` | Default: `sqlite+aiosqlite:///./data/homesync.db` |
+| `USER_A_TOKEN` / `USER_B_TOKEN` | Token di setup iniziale (non il PIN di login — il PIN è opzionale e si imposta dopo, da Impostazioni) |
+| `DATABASE_PATH` | Default: `/data/homesync.db` |
 
 ## Known Limitations
 

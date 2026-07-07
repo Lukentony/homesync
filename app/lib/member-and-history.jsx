@@ -190,6 +190,8 @@ function HistoryScreen({ completed, onOpen, onUndo }) {
               const isBoth = byId === 'both';
               const users = isBoth ? MOCK.users : [MOCK.users.find(u => u.id === byId)].filter(Boolean);
               const time = new Date(t.completedAt || Date.now()).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+              const hpts = t.awardedPoints ?? t.points ?? 0;
+              const hneg = hpts < 0;
               return (
                 <div key={t.id + i} style={{
                   display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', cursor: 'pointer',
@@ -207,9 +209,9 @@ function HistoryScreen({ completed, onOpen, onUndo }) {
                       </div>
                     </div>
                     <span style={{
-                      padding: '3px 8px', borderRadius: 999, background: HS.sageSoft,
-                      fontFamily: HS.fontUI, fontSize: 11, fontWeight: 700, color: HS.sageInk,
-                    }}>+{t.awardedPoints || t.points} pt</span>
+                      padding: '3px 8px', borderRadius: 999, background: hneg ? HS.urgentSoft : HS.sageSoft,
+                      fontFamily: HS.fontUI, fontSize: 11, fontWeight: 700, color: hneg ? HS.urgentInk : HS.sageInk,
+                    }}>{(window.fmtPoints ? window.fmtPoints(hpts) : (hpts>=0?'+':'')+hpts)} pt</span>
                   </div>
                   {onUndo && (
                     <button onClick={(e) => { e.stopPropagation(); onUndo(t); }}

@@ -214,7 +214,13 @@ Esegui all'istante una delle creazioni rapide attive o creane una personalizzata
     <button key={qa.id}
     onClick={() => {
       if (onComplete) {
-        onComplete({ ...qa, assignee: window.HS_API.getMe() || 1 });
+        // 'both' fa scattare in handleComplete la scelta "Chi l'ha fatto?"
+        // (self/altro/insieme), invece di assegnare sempre e solo a se
+        // stessi senza possibilita' di scelta. qa arriva da
+        // getQuickActions() (TaskRead grezzo, senza 'points' calcolato
+        // lato frontend) — serve per la preview punti nel picker
+        // "Chi l'ha fatto?", altrimenti sarebbe NaN.
+        onComplete({ ...qa, assignee: 'both', points: (qa.difficulty || 2) * ((scoring || {}).base || 3) });
       }
       onClose();
     }}

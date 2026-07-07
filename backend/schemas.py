@@ -44,6 +44,10 @@ class TaskRead(TaskBase):
     instance_date: Optional[date] = None
     instance_type: Optional[str] = None  # "original" | "expanded"
     assigned_user_id: Optional[int] = None
+    # Scope "solo questa occorrenza" (PIANO_HOMESYNC_EDIT_SCOPE, Fase 2)
+    has_history: bool = False
+    has_occurrence_override: bool = False
+    skipped_occurrences: List[date] = []
 
     class Config:
         from_attributes = True

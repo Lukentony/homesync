@@ -1,4 +1,10 @@
-"""rename users to Utente A Utente B"""
+"""rename users (no-op placeholder)
+
+Storicamente questa migrazione rinominava gli utenti a valori fissi,
+sovrascrivendo qualsiasi nome configurato via USER_A_NAME/USER_B_NAME
+dalla migrazione 001 su ogni installazione da zero. Reso no-op: i nomi
+restano quelli scelti dall'amministratore in .env.
+"""
 from alembic import op
 import sqlalchemy as sa
 
@@ -8,9 +14,7 @@ branch_labels = None
 depends_on = None
 
 def upgrade():
-    op.execute("UPDATE users SET name='Utente A' WHERE id=1")
-    op.execute("UPDATE users SET name='Utente B' WHERE id=2")
+    pass
 
 def downgrade():
-    op.execute("UPDATE users SET name='User 1' WHERE id=1")
-    op.execute("UPDATE users SET name='User 2' WHERE id=2")
+    pass

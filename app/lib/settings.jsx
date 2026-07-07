@@ -128,36 +128,8 @@ return (
 <div style={{ padding: '10px 18px 140px' }}>
 <h2 style={{ margin: '2px 0 14px', fontFamily: HS.fontDisplay, fontSize: 32, color: HS.ink, fontWeight: 500, letterSpacing: -1 }}>Impostazioni</h2>
 
-{/* Vista & Interazione */}
-<SectionLabel>Vista home & interazione</SectionLabel>
-<div style={{ background: HS.card, borderRadius: HS.r.lg, boxShadow: HS.shadow.card, padding: '14px 14px 16px', marginBottom: 14 }}>
-<div style={{ fontFamily: HS.fontUI, fontSize: 12, color: HS.ink3, fontWeight: 600, marginBottom: 10 }}>LAYOUT HOME</div>
-<div style={{ display: 'flex', background: HS.bgSunken, borderRadius: 10, padding: 3, gap: 2, marginBottom: 16 }}>
-{[{id:'dial',l:'Dial'},{id:'channels',l:'Lista'}].map(m => (
-<button key={m.id} onClick={() => setHomeMode && setHomeMode(m.id)}
-style={{
-flex: 1, border: 'none', padding: '8px 12px', borderRadius: 7, cursor: 'pointer',
-background: homeMode === m.id ? HS.primary : 'transparent',
-boxShadow: homeMode === m.id ? HS.shadow.card : 'none',
-fontFamily: HS.fontUI, fontSize: 13, fontWeight: 700,
-color: homeMode === m.id ? '#fff' : HS.ink3,
-}}>{"Dial" === m.l ? "Quadrante" : m.l}</button>
-))}
-</div>
-<div style={{ fontFamily: HS.fontUI, fontSize: 12, color: HS.ink3, fontWeight: 600, marginBottom: 10 }}>MODALITÀ COMPLETAMENTO TASK</div>
-<div style={{ display: 'flex', background: HS.bgSunken, borderRadius: 10, padding: 3, gap: 2 }}>
-{[{id:'tap',l:'Tap'},{id:'swipe',l:'Swipe'},{id:'hold',l:'Hold'}].map(v => (
-<button key={v.id} onClick={() => setCardVariant && setCardVariant(v.id)}
-style={{
-flex: 1, border: 'none', padding: '8px 10px', borderRadius: 7, cursor: 'pointer',
-background: cardVariant === v.id ? HS.ink : 'transparent',
-boxShadow: cardVariant === v.id ? HS.shadow.card : 'none',
-fontFamily: HS.fontUI, fontSize: 13, fontWeight: 700,
-color: cardVariant === v.id ? '#fff' : HS.ink3,
-}}>{"Tap" === v.l ? "Tocco" : "Hold" === v.l ? "Pressione" : v.l}</button>
-))}
-</div>
-</div>
+{/* Layout home e modalità completamento sono fissi (quadrante + tocco):
+    i selettori sono stati rimossi dalla produzione. */}
 
 {/* Vacation */}
 <div style={{
@@ -307,15 +279,9 @@ Personalizza come vengono calcolati i punti per ogni task completato.
     Attualmente: Facile = {scoring.base} pt | Medio = {scoring.base * 2} pt | Difficile = {scoring.base * 3} pt
   </span>
 </div>
-<ScoreSlider label="Bonus task scaduti" value={scoring.overdueBonus} setValue={(v) => setScoring({ ...scoring, overdueBonus: v })} min={0} max={5} suffix="pt" />
-
-<div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, padding: '12px 0 0', borderTop: `1px solid ${HS.hairline}` }}>
-<div style={{ flex: 1 }}>
-<div style={{ fontFamily: HS.fontUI, fontSize: 14, fontWeight: 600, color: HS.ink }}>Dividi punti task condivisi</div>
-<div style={{ fontFamily: HS.fontUI, fontSize: 11, color: HS.ink3 }}>Se "Insieme", metà punti a testa</div>
-</div>
-<Toggle on={scoring.splitShared} onChange={(v) => setScoring({ ...scoring, splitShared: v })} />
-</div>
+{/* "Bonus task scaduti" e "Dividi punti task condivisi" rimossi: il backend
+    non li legge mai (ritardo -> valore base a 1 fisso, TOGETHER -> sempre
+    diviso a metà), i controlli non cambiavano nulla nel comportamento reale. */}
 </div>
 
 {/* Preferences */}
@@ -489,6 +455,9 @@ style={{ width: '100%', accentColor: HS.primary }} />
 );
 }
 
+// NB: le sheet di questo file usano position:fixed (non absolute): vengono
+// renderizzate DENTRO il contenitore scrollabile, e con absolute si
+// ancorerebbero in cima al contenuto scrollato (fuori viewport).
 function RoomEditSheet({ open, room, onClose, onSave }) {
 const ICONS = [
 { id: 'Utensils', label: 'Cucina', color: '#E2743A' },
@@ -515,7 +484,7 @@ const COLORS = ['#E2743A', '#6F9E7A', '#8C5AC8', '#E0A93A', '#D94B4B', '#3B82AE'
 
 return (
 <div style={{
-position: 'absolute', inset: 0, zIndex: 55,
+position: 'fixed', inset: 0, zIndex: 55,
 background: 'rgba(42,29,20,0.5)', backdropFilter: 'blur(3px)',
 display: 'flex', alignItems: 'flex-end',
 animation: 'hs-fade 180ms ease',
@@ -612,7 +581,7 @@ function QuickActionEditSheet({ open, initialData, onClose, onSave }) {
 
   return (
     <div style={{
-      position: 'absolute', inset: 0, zIndex: 55,
+      position: 'fixed', inset: 0, zIndex: 55,
       background: 'rgba(42,29,20,0.5)', backdropFilter: 'blur(3px)',
       display: 'flex', alignItems: 'flex-end',
       animation: 'hs-fade 180ms ease',

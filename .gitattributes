@@ -1,0 +1,9 @@
+# Normalizza gli a-capo a LF per tutti i file di testo, indipendentemente
+# da core.autocrlf sulla macchina di chi contribuisce. Senza questo, uno
+# script di shell come docker-entrypoint.sh può finire con CRLF e rompere
+# lo shebang dentro il container ("no such file or directory").
+* text=auto eol=lf
+*.sh text eol=lf
+
+*.png binary
+*.ico binary
